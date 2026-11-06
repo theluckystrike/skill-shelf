@@ -11,6 +11,7 @@ const { scanLocation } = require('./core/scan');
 const fsops = require('./core/fsops');
 const cli = require('./core/cli');
 const { createRatingPrompt } = require('./rate');
+const { registerSupport, commandIds, showLinks } = require('./support');
 
 let rating = { success() {} };
 
@@ -23,7 +24,8 @@ let rating = { success() {} };
  * @typedef {{ type: 'location', result: LocationResult }} LocationNode
  * @typedef {{ type: 'skill', skill: SkillInfo, location: ResolvedLocation }} SkillNode
  * @typedef {{ type: 'problem', problem: import('./core/validate').Problem, skill: SkillInfo }} ProblemNode
- * @typedef {RootNode | LocationNode | SkillNode | ProblemNode} Node
+ * @typedef {{ type: 'support' } | { type: 'supportLink', which: 'sponsor' | 'more' }} SupportNode
+ * @typedef {RootNode | LocationNode | SkillNode | ProblemNode | SupportNode} Node
  */
 
 const CONFIG = 'agentSkills';
@@ -110,7 +112,12 @@ class SkillsTree {
       roots.push({ type: 'root', id: `project:${f.uri.fsPath}`, label: f.name, description: 'Project', scope: 'project', folderPath: f.uri.fsPath });
     }
     roots.push({ type: 'root', id: 'user', label: 'User', description: '~', scope: 'user', folderPath: null });
-    return roots.filter((r) => this.locationsOf(r).length > 0);
+    /** @type {any[]} */
+    const shown = roots.filter((r) => this.locationsOf(r).length > 0);
+    // One collapsed "Support Skill Shelf" row at the end, only when the list has skills (an empty tree shows the
+    // welcome text instead). Setting agentSkills.showSupportLinks hides it.
+    if (shown.length && showLinks(vscode, CONFIG)) shown.push({ type: 'support' });
+    return shown;
   }
 
   /** @param {RootNode} root */
@@ -132,11 +139,32 @@ class SkillsTree {
       return el.result.skills.map((skill) => ({ type: 'skill', skill, location: loc }));
     }
     if (el.type === 'skill') return el.skill.problems.map((problem) => ({ type: 'problem', problem, skill: el.skill }));
+    if (el.type === 'support') return [{ type: 'supportLink', which: 'sponsor' }, { type: 'supportLink', which: 'more' }];
     return [];
   }
 
   /** @param {Node} el @returns {vscode.TreeItem} */
   getTreeItem(el) {
+    if (el.type === 'support') {
+      const item = new vscode.TreeItem('Support Skill Shelf', vscode.TreeItemCollapsibleState.Collapsed);
+      item.id = 'support';
+      item.description = 'Sponsor · More free viewers';
+      item.tooltip = 'Sponsor the developer on GitHub, or install another free Zovo extension. Turn off agentSkills.showSupportLinks to hide this row.';
+      item.iconPath = new vscode.ThemeIcon('heart');
+      item.contextValue = 'support';
+      return item;
+    }
+    if (el.type === 'supportLink') {
+      const c = commandIds(CONFIG);
+      const sponsor = el.which === 'sponsor';
+      const item = new vscode.TreeItem(sponsor ? 'Sponsor' : 'More free viewers', vscode.TreeItemCollapsibleState.None);
+      item.id = `support:${el.which}`;
+      item.description = sponsor ? 'GitHub Sponsors' : 'Other extensions by Zovo';
+      item.iconPath = new vscode.ThemeIcon(sponsor ? 'link-external' : 'extensions');
+      item.contextValue = 'supportLink';
+      item.command = { command: sponsor ? c.sponsor : c.more, title: item.label };
+      return item;
+    }
     if (el.type === 'root') {
       const item = new vscode.TreeItem(el.label, vscode.TreeItemCollapsibleState.Expanded);
       item.id = el.id;
@@ -318,6 +346,7 @@ function activate(context) {
   rating = createRatingPrompt({ vscode, context, extensionId: 'zovo.skill-shelf', section: 'agentSkills', message: (n) => `Skill Shelf has listed your skills ${n} times for you. A rating helps other people find it.` });
   let ratedThisSession = false; // one success per session: the tree is visible and shows at least one skill
   const countSuccess = (total) => { if (!ratedThisSession && total > 0 && view.visible) { ratedThisSession = true; rating.success(); } };
+  registerSupport({ vscode, context, prefix: CONFIG, selfId: 'zovo.skill-shelf' });
   const tree = new SkillsTree();
   const diags = vscode.languages.createDiagnosticCollection('agentSkills');
   const view = vscode.window.createTreeView('agentSkills.tree', { treeDataProvider: tree, showCollapseAll: true });

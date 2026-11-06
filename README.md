@@ -56,7 +56,7 @@ Fields outside the [Agent Skills specification](https://agentskills.io/specifica
 
 ## Installing skills from GitHub
 
-Install Skills from GitHub… asks for a repository (`owner/repo`, `owner/repo@tag` or a `https://github.com/…` URL), the agents and the scope. Then it shows the exact [`skills` CLI](https://github.com/vercel-labs/skills) command, for example:
+Install Skills from GitHub… asks for a repository (`owner/repo`, `owner/repo@tag` or a `https://github.com/…` URL), the agents and the scope. Then it shows the exact [`skills` CLI](https://github.com/vercel-labs/skills) command. Here is one example.
 
 ```
 npx -y skills add vercel-labs/agent-skills -a claude-code -a cursor -g
@@ -80,9 +80,10 @@ The repository and skill names are limited to letters, digits and `. _ - /`, so 
 |---|---|---|
 | `agentSkills.extraLocations` | `[]` | Extra skills folders. `~/…` and absolute paths are user scope; relative paths are resolved inside each workspace folder. |
 | `agentSkills.showEmptyLocations` | `false` | Also show known folders that don't exist yet. |
-| `agentSkills.diagnostics` | `workspace` | Which problems go to the Problems panel: `workspace`, `all` (also user skills) or `off`. |
+| `agentSkills.diagnostics` | `workspace` | Which problems go to the Problems panel, `workspace`, `all` (also user skills) or `off`. |
 | `agentSkills.install.disableTelemetry` | `false` | Add `DISABLE_TELEMETRY=1` to the install command. Per the CLI's README this turns off its anonymous usage data and its security-audit requests. |
-| `agentSkills.askForRating` | `true` | Ask one time for a Marketplace rating, after 5 sessions and 2 days. Turn it off with `false` |
+| `agentSkills.askForRating` | `true` | Ask one time for a Marketplace rating, after 5 sessions and 2 days. Turn it off with `false`. |
+| `agentSkills.showSupportLinks` | `true` | Show the collapsed Support Skill Shelf row at the end of the list. Turn it off with `false`. |
 
 ## Limits
 
@@ -96,12 +97,30 @@ The repository and skill names are limited to letters, digits and `. _ - /`, so 
 
 MIT. Not affiliated with Anthropic, OpenAI, Anysphere, GitHub, Microsoft, Vercel or any agent vendor. Product names only say which tools the extension works with.
 
+## Support
+
+Zovo extensions have no ads and no tracking, and sponsors pay for the time that goes into fixes and new viewers. You can sponsor the work on [GitHub Sponsors](https://github.com/sponsors/theluckystrike).
+
 ## More viewers by Zovo
 
 - [Context Drift](https://marketplace.visualstudio.com/items?itemName=zovo.context-drift) finds stale facts in AGENTS.md, CLAUDE.md and other agent rule files.
-- [PDF Viewer & Reader with Dark Mode](https://marketplace.visualstudio.com/items?itemName=zovo.pdf-viewer-dark) reads PDFs with a dark mode, search, an outline and thumbnails.
+- [PDF Viewer & Reader with Dark Mode](https://marketplace.visualstudio.com/items?itemName=zovo.pdf-viewer-dark) reads PDFs with a real dark mode, search, an outline and thumbnails.
 - [CSV, Excel & Parquet Viewer](https://marketplace.visualstudio.com/items?itemName=zovo.table-viewer-vscode) opens Parquet, Excel and CSV files as a sortable, filterable table.
 - [DOCX Viewer & Word Viewer](https://marketplace.visualstudio.com/items?itemName=zovo.docx-viewer-vscode) previews Word files with dark mode, an outline and search.
 - [HDF5 & NetCDF Explorer](https://marketplace.visualstudio.com/items?itemName=zovo.hdf5-netcdf-explorer) browses groups, variables and attributes in scientific data files.
 - [PPTX Viewer for PowerPoint](https://marketplace.visualstudio.com/items?itemName=zovo.pptx-slide-viewer) shows PowerPoint slides, thumbnails and speaker notes.
 - [Tensor Viewer](https://marketplace.visualstudio.com/items?itemName=zovo.tensor-viewer) shows NPY, NPZ, Safetensors and GGUF tensors with stats and heatmaps.
+
+Coming soon to the Marketplace, with the code on GitHub now.
+
+- [JSONL Viewer](https://github.com/theluckystrike/jsonl-viewer-vscode) opens JSONL and NDJSON files as a table, as records or as a chat view.
+- [SQLite Table Viewer](https://github.com/theluckystrike/sqlite-table-viewer) browses SQLite tables read-only and runs SELECT queries.
+- [Agent Session Viewer](https://github.com/theluckystrike/agent-session-viewer) browses and searches your local Claude Code and Codex sessions.
+- [Audio Preview & Loudness Meter](https://github.com/theluckystrike/audio-preview-vscode) plays audio files with a waveform, a spectrogram and LUFS loudness.
+- [Video Preview with Sound](https://github.com/theluckystrike/video-preview-vscode) plays MP4, MOV, MKV and WebM files with their sound.
+- [Graphviz Preview & DOT Viewer](https://github.com/theluckystrike/graphviz-preview-vscode) shows a live preview of DOT files and exports SVG or PNG.
+- [TIFF Viewer](https://github.com/theluckystrike/tiff-viewer-vscode) opens 16-bit, float, multi-page and GeoTIFF images.
+- [Avro, Arrow & Feather Viewer](https://github.com/theluckystrike/arrow-avro-viewer-vscode) opens Avro, Arrow and Feather files as a paged table.
+- [EML & MBOX Email Viewer](https://github.com/theluckystrike/eml-viewer-vscode) reads email files with remote images blocked.
+- [3D Model Viewer](https://github.com/theluckystrike/model-viewer-vscode) views GLB, glTF, STL, OBJ, PLY and 3MF models.
+- [File Viewers Pack](https://github.com/theluckystrike/zovo-file-viewers) installs the PDF, table, Word, PowerPoint, HDF5 and tensor viewers in one step.

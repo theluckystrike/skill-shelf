@@ -2,7 +2,7 @@
   "name": "skill-shelf",
   "displayName": "Agent Skills & Claude Skills (Skill Shelf)",
   "description": "Manage Agent Skills and Claude skills (SKILL.md) for Claude Code, Codex, Cursor, Copilot and Windsurf, so you can see, check, turn on or off, copy and create them offline.",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "publisher": "zovo",
   "license": "MIT",
   "icon": "media/icon.png",
@@ -95,6 +95,11 @@
         "view": "agentSkills.tree",
         "contents": "No agent skills found. This workspace is in Restricted Mode, so the extension is read-only.",
         "when": "!isWorkspaceTrusted"
+      },
+      {
+        "view": "agentSkills.tree",
+        "contents": "Skill Shelf is free. [Sponsor](command:agentSkills.supportDeveloper) or see [more free viewers](command:agentSkills.moreViewers).",
+        "when": "config.agentSkills.showSupportLinks"
       }
     ],
     "commands": [
@@ -136,24 +141,34 @@
       },
       {
         "command": "agentSkills.copyTo",
-        "title": "Copy Skill To\u2026",
+        "title": "Copy Skill To…",
         "category": "Agent Skills",
         "icon": "$(copy)",
         "enablement": "isWorkspaceTrusted"
       },
       {
         "command": "agentSkills.create",
-        "title": "Create Skill\u2026",
+        "title": "Create Skill…",
         "category": "Agent Skills",
         "icon": "$(add)",
         "enablement": "isWorkspaceTrusted"
       },
       {
         "command": "agentSkills.installFromGitHub",
-        "title": "Install Skills from GitHub\u2026",
+        "title": "Install Skills from GitHub…",
         "category": "Agent Skills",
         "icon": "$(cloud-download)",
         "enablement": "isWorkspaceTrusted"
+      },
+      {
+        "command": "agentSkills.supportDeveloper",
+        "title": "Support the developer",
+        "category": "Agent Skills"
+      },
+      {
+        "command": "agentSkills.moreViewers",
+        "title": "More free viewers",
+        "category": "Agent Skills"
       }
     ],
     "menus": {
@@ -252,7 +267,7 @@
             "type": "string"
           },
           "default": [],
-          "markdownDescription": "Extra skills folders to show. Absolute paths and `~/\u2026` paths are user scope; relative paths are resolved inside each workspace folder (for example `packages/app/.claude/skills`)."
+          "markdownDescription": "Extra skills folders to show. Absolute paths and `~/…` paths are user scope; relative paths are resolved inside each workspace folder (for example `packages/app/.claude/skills`)."
         },
         "agentSkills.showEmptyLocations": {
           "type": "boolean",
@@ -283,6 +298,11 @@
           "type": "boolean",
           "default": true,
           "description": "Ask one time for a Marketplace rating after you have used Skill Shelf for a few days. You can answer \"Later\" or \"Don't ask again\". Nothing is sent anywhere."
+        },
+        "agentSkills.showSupportLinks": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show one small Support Skill Shelf row at the end of the skills list, with Sponsor and More free viewers. Nothing is sent anywhere."
         }
       }
     }
@@ -303,5 +323,8 @@
   "homepage": "https://github.com/theluckystrike/skill-shelf#readme",
   "bugs": {
     "url": "https://github.com/theluckystrike/skill-shelf/issues"
+  },
+  "sponsor": {
+    "url": "https://github.com/sponsors/theluckystrike"
   }
 }

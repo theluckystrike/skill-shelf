@@ -483,7 +483,7 @@ test('tooltips escape names, paths and descriptions from disk', POSIX_ONLY, (t) 
   api._test.refreshNow();
   const tree = api._test.tree;
   let item;
-  for (const root of tree.getChildren()) {
+  for (const root of tree.getChildren().filter((n) => n.type === 'root')) {
     for (const loc of tree.getChildren(root)) {
       const locItem = tree.getTreeItem(loc);
       assert.deepEqual(locItem.tooltip.markdownCalls, []);

@@ -189,7 +189,9 @@ test('activation registers every declared command and builds the tree from a fak
 
     api._test.refreshNow();
     const tree = api._test.tree;
-    const roots = tree.getChildren();
+    const all = tree.getChildren();
+    assert.equal(all[all.length - 1].type, 'support', 'the support row comes last');
+    const roots = all.filter((r) => r.type === 'root');
     assert.deepEqual(roots.map((r) => `${r.label}:${r.scope}`), ['proj:project', 'User:user']);
 
     const projLocs = tree.getChildren(roots[0]);
@@ -249,6 +251,51 @@ test('write commands refuse to run in an untrusted workspace', { skip: process.p
     assert.match(state.messages[0], /read-only in Restricted Mode/);
     assert.equal(fs.existsSync(path.join(tmp, 'p', '.claude', 'skills', 'keep', 'SKILL.md')), true);
     for (const d of context.subscriptions) if (d && typeof d.dispose === 'function') d.dispose();
+  } finally {
+    process.env.HOME = oldHome;
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+// ---------- support links (Sponsor, More free viewers) ----------
+test('support: package.json has the sponsor field, the two commands, the setting and the welcome line', () => {
+  const support = require('../src/support');
+  assert.equal(pkg.sponsor.url, 'https://github.com/sponsors/theluckystrike');
+  assert.equal(pkg.sponsor.url, support.sponsorUrl());
+  const ids = pkg.contributes.commands.map((c) => c.command);
+  assert.ok(ids.includes('agentSkills.supportDeveloper') && ids.includes('agentSkills.moreViewers'));
+  assert.equal(pkg.contributes.configuration.properties['agentSkills.showSupportLinks'].default, true);
+  const welcome = pkg.contributes.viewsWelcome.find((v) => v.contents.includes('command:agentSkills.supportDeveloper'));
+  assert.equal(welcome.when, 'config.agentSkills.showSupportLinks');
+  assert.ok(support.otherProducts('zovo.skill-shelf').every((p) => p.id !== 'zovo.skill-shelf'));
+});
+
+test('support: the tree ends with a Support row by default, agentSkills.showSupportLinks=false hides it', { skip: process.platform === 'win32' }, () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'asm-sup-'));
+  const oldHome = process.env.HOME;
+  try {
+    fs.mkdirSync(path.join(tmp, 'p', '.claude', 'skills', 'keep'), { recursive: true });
+    fs.writeFileSync(path.join(tmp, 'p', '.claude', 'skills', 'keep', 'SKILL.md'), '---\nname: keep\ndescription: d\n---\nb\n');
+    process.env.HOME = path.join(tmp, 'home');
+    for (const [config, shown] of [[{}, true], [{ showSupportLinks: false }, false]]) {
+      const state = { commands: new Map(), diagnostics: new Map(), messages: [], folders: [{ name: 'p', uri: { scheme: 'file', fsPath: path.join(tmp, 'p') } }], trusted: true, config };
+      const ext = loadExtension(makeVscode(state));
+      const context = { subscriptions: [] };
+      const api = ext.activate(context);
+      api._test.refreshNow();
+      const tree = api._test.tree;
+      const top = tree.getChildren();
+      const sup = top.find((n) => n.type === 'support');
+      assert.equal(!!sup, shown, JSON.stringify(config));
+      if (shown) {
+        assert.equal(top[top.length - 1], sup);
+        const links = tree.getChildren(sup).map((n) => tree.getTreeItem(n));
+        assert.deepEqual(links.map((i) => i.command.command), ['agentSkills.supportDeveloper', 'agentSkills.moreViewers']);
+        assert.equal(tree.getTreeItem(sup).collapsibleState, 1, 'collapsed, one line');
+      }
+      assert.ok(state.commands.has('agentSkills.supportDeveloper') && state.commands.has('agentSkills.moreViewers'));
+      for (const d of context.subscriptions) if (d && typeof d.dispose === 'function') d.dispose();
+    }
   } finally {
     process.env.HOME = oldHome;
     fs.rmSync(tmp, { recursive: true, force: true });

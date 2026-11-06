@@ -10,3 +10,4 @@ DONE
 **/*.map
 .gitignore
 images/**
+.github/**
