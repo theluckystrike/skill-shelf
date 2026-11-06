@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.1 (2026-11-07)
+
+- The "More free viewers" list and the README list now show the 15 Zovo extensions on the Marketplace under their current names, and 12 that are coming soon.
+- Extensions for related files now come first, starting with AGENTS.md & CLAUDE.md Linter (Context Drift) and Claude Code Usage & Codex Usage Cost Meter.
+
 ## 0.2.0 (2026-11-06)
 
 - Find Skill searches every skill in every project and user folder by name, description, folder or agent. Open it from the search icon at the top of the view or the Command Palette. Enter opens `SKILL.md`, and the row buttons open the Markdown preview or select the skill in the tree.

@@ -2,7 +2,7 @@
   "name": "skill-shelf",
   "displayName": "Agent Skills & Claude Skills (Skill Shelf)",
   "description": "Manage Agent Skills and Claude skills (SKILL.md) for Claude Code, Codex, Cursor, Copilot and Windsurf, so you can see, check, turn on or off, copy and create them offline.",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "publisher": "zovo",
   "license": "MIT",
   "icon": "media/icon.png",
