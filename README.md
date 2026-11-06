@@ -8,7 +8,7 @@ For people who write skills for Claude Code, Codex, Cursor, Copilot or Windsurf,
 
 - See which skills each agent picks up across 23 known folders, for the project and your home folder, without opening ten dot-folders by hand.
 - Catch the mistakes that make an agent skip a skill, like an uppercase `name`, an unquoted `Use when:` in YAML, or a missing `scripts/` file, with line numbers in the Problems panel.
-- Turn a skill off, copy it to another agent or create a new one in a click. Nothing is deleted, and it all works offline.
+- Turn a skill off, copy it to another agent, create a new one, or install and share `.skill` files in a click. Nothing is deleted, and it all works offline.
 
 ## Quick start
 
@@ -39,6 +39,12 @@ These paths come from each agent's documentation and from the `skills` CLI agent
 
 Hover a skill to see its full description, its path and its symlink target. Click it to open `SKILL.md`.
 
+## Finding a skill
+
+Click the search icon at the top of the view, or run "Agent Skills: Find Skill…". One search box covers every skill in every project and user folder. It matches the name, the description, the folder and the agents that read it, so typing `pdf` or `cursor` narrows the list as you type. Each row shows where the skill lives and how many errors and warnings it has.
+
+Press Enter to open `SKILL.md`. The two buttons on a row open the rendered Markdown preview or select the skill in the tree. "Preview SKILL.md" is also in the right-click menu of every skill.
+
 ## What it checks
 
 Problems show in the tree. For workspace skills they also go to the Problems panel, with line numbers.
@@ -58,6 +64,14 @@ Fields outside the [Agent Skills specification](https://agentskills.io/specifica
 - Create Skill… asks for a folder, a name and a description, then writes a `SKILL.md` that passes the checks.
 - Reveal in File Explorer and Open SKILL.md do what they say.
 
+## Sharing skills as .skill files
+
+A `.skill` file is a ZIP archive with the skill folder inside, the format Claude's skill packager writes and claude.ai accepts for upload. A `.zip` with the same layout works too.
+
+- Export Skill as .skill File… (right-click a skill) writes `<name>/SKILL.md` and the rest of the folder into one file you can send to a teammate or upload to claude.ai. It leaves out the same files Copy leaves out (`.git`, secret-looking files and symlinks that point outside the skill) and lists them.
+- Install Skill from .skill or .zip File… (right-click the file in the Explorer, the `…` menu of the view, or a skills folder in the tree) shows which skills the file holds, how many files each has and any SKILL.md errors. You choose the folder, so one bundle can go to Claude Code, Codex or Cursor. After a confirmation it writes the files.
+- Install never overwrites a skill that exists, and if one name clashes nothing is written. Paths that leave the target folder (`../`), absolute paths, links, password-protected archives and files over 50 MB are refused. A bundle with several skills lets you pick which ones to install.
+
 ## Installing skills from GitHub
 
 Install Skills from GitHub… asks for a repository (`owner/repo`, `owner/repo@tag` or a `https://github.com/…` URL), the agents and the scope. Then it shows the exact [`skills` CLI](https://github.com/vercel-labs/skills) command. Here is one example.
@@ -73,10 +87,10 @@ The repository and skill names are limited to letters, digits and `. _ - /`, so 
 ## Safety
 
 - The extension makes no network calls, sends no telemetry and starts no processes.
-- It reads only `SKILL.md` files. A `SKILL.md` that is a symlink to a file outside its skill folder is not read.
+- It reads only `SKILL.md` files, plus the files of a skill you export and the bundle you pick to install. A `SKILL.md` that is a symlink to a file outside its skill folder is not read.
 - Copy skips files that usually hold secrets (`.env`, `.npmrc`, `*.pem`, `*.key`, `id_rsa` and similar, plus `.ssh` and `.aws` folders) and symlinks that point outside the skill. It lists what it skipped.
 - Hover text escapes every name, path and description, so a skill can't inject links or images.
-- In an untrusted workspace (Restricted Mode) it only lists and checks skills. Disable, enable, copy, create and install are off.
+- In an untrusted workspace (Restricted Mode) it only lists, finds and checks skills. Disable, enable, copy, create, export and install are off.
 
 ## Settings
 

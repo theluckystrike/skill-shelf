@@ -10,6 +10,7 @@ const { resolveLocations, CLI_AGENTS } = require('./core/locations');
 const { scanLocation } = require('./core/scan');
 const fsops = require('./core/fsops');
 const cli = require('./core/cli');
+const bundle = require('./core/bundle');
 const { createRatingPrompt } = require('./rate');
 const { registerSupport, commandIds, showLinks } = require('./support');
 
@@ -55,6 +56,19 @@ function scanAll() {
   lastScan = Date.now();
 }
 
+/** A short fingerprint of what the tree shows, to skip redraws when nothing changed. */
+function signature() {
+  return JSON.stringify(
+    results.map((r) => [
+      r.location.key,
+      r.exists,
+      r.truncated,
+      r.errors.map(String),
+      r.skills.map((s) => [s.dir, s.name, s.description, s.disabled, s.symlink, s.realDir, s.skillMd, s.problems.map((p) => [p.severity, p.code, p.line, p.message])]),
+    ])
+  );
+}
+
 /** @param {string} s @param {number} n */
 function truncate(s, n) {
   const one = s.replace(/\s+/g, ' ').trim();
@@ -76,6 +90,21 @@ function tooltip(...parts) {
     else md.appendMarkdown(`**${p.b}**`);
   }
   return md;
+}
+
+/**
+ * QuickPick labels turn $(name) into icons. Text from disk must not, so break the pattern.
+ * @param {string} s
+ */
+function noIcons(s) {
+  return String(s).replace(/\$\(/g, '$\u200b(');
+}
+
+/** @param {number} n */
+function formatBytes(n) {
+  if (n < 1024) return `${n} B`;
+  if (n < 1024 * 1024) return `${(n / 1024).toFixed(1)} KB`;
+  return `${(n / 1048576).toFixed(1)} MB`;
 }
 
 /** @param {'error' | 'warning' | 'info' | null} sev */
@@ -128,6 +157,28 @@ class SkillsTree {
         (root.scope === 'user' || r.location.folderPath === root.folderPath) &&
         this.visible(r)
     );
+  }
+
+  /**
+   * Parent of a node, so the view can reveal a skill (Find Skill uses this).
+   * @param {Node} el
+   * @returns {Node | undefined}
+   */
+  getParent(el) {
+    if (el.type === 'problem') {
+      for (const r of results) if (r.skills.includes(el.skill)) return { type: 'skill', skill: el.skill, location: r.location };
+      return undefined;
+    }
+    if (el.type === 'skill') {
+      const result = results.find((r) => r.location.key === el.location.key);
+      return result ? { type: 'location', result } : undefined;
+    }
+    if (el.type === 'location') {
+      const loc = el.result.location;
+      return this.roots().find((r) => r.type === 'root' && r.scope === loc.scope && (loc.scope === 'user' || r.folderPath === loc.folderPath));
+    }
+    if (el.type === 'supportLink') return { type: 'support' };
+    return undefined;
   }
 
   /** @param {Node} [el] @returns {Node[]} */
@@ -318,7 +369,7 @@ async function skillArg(arg, filter, placeHolder) {
  * @param {(loc: ResolvedLocation) => boolean} filter
  * @returns {Promise<ResolvedLocation | undefined>}
  */
-async function pickLocation(placeHolder, filter) {
+async function pickLocation(placeHolder, filter, ignoreFocusOut = false) {
   const locs = results.map((r) => ({ loc: r.location, exists: r.exists })).filter((x) => filter(x.loc));
   if (locs.length === 0) {
     void vscode.window.showInformationMessage('No skill folders are available. Open a folder or check agentSkills.extraLocations.');
@@ -330,7 +381,7 @@ async function pickLocation(placeHolder, filter) {
     detail: `Read by: ${x.loc.agents.join(', ')}`,
     loc: x.loc,
   }));
-  const picked = await vscode.window.showQuickPick(items, { placeHolder, matchOnDescription: true, matchOnDetail: true });
+  const picked = await vscode.window.showQuickPick(items, { placeHolder, matchOnDescription: true, matchOnDetail: true, ignoreFocusOut });
   return picked ? picked.loc : undefined;
 }
 
@@ -357,22 +408,32 @@ function activate(context) {
 
   /** @type {NodeJS.Timeout | undefined} */
   let timer;
-  const refreshNow = () => {
+  // force = false (background refreshes: file watcher, window focus, settings) redraws the tree only when
+  // the scan found a change. Redrawing on every window focus is wasted work and can close an open search box.
+  const refreshNow = (force = true) => {
+    const before = signature();
     try {
       scanAll();
     } catch (e) {
       void vscode.window.showErrorMessage(`Agent Skills: scan failed: ${errorText(e)}`);
       return;
     }
+    if (!force && signature() === before) return;
     tree.fire();
     updateDiagnostics(diags);
     const total = results.reduce((n, r) => n + r.skills.filter((s) => !s.disabled).length, 0);
     view.description = total ? `${total} enabled` : undefined;
     countSuccess(skillCount());
   };
-  const scheduleRefresh = (delay = 300) => {
+  let pendingForce = false;
+  const scheduleRefresh = (delay = 300, force = false) => {
     if (timer) clearTimeout(timer);
-    timer = setTimeout(refreshNow, delay);
+    pendingForce = pendingForce || force;
+    timer = setTimeout(() => {
+      const f = pendingForce;
+      pendingForce = false;
+      refreshNow(f);
+    }, delay);
   };
 
   const watcher = vscode.workspace.createFileSystemWatcher('**/{SKILL.md,skill.md}');
@@ -386,7 +447,7 @@ function activate(context) {
   const reg = (/** @type {string} */ id, /** @type {(...args: any[]) => any} */ fn) =>
     context.subscriptions.push(vscode.commands.registerCommand(id, fn));
 
-  reg('agentSkills.refresh', () => refreshNow());
+  reg('agentSkills.refresh', () => refreshNow(true));
 
   reg('agentSkills.open', async (/** @type {Node | undefined} */ arg) => {
     const node = await skillArg(arg, () => true, 'Open which skill?');
@@ -523,6 +584,198 @@ function activate(context) {
     }
   });
 
+  // Find Skill: one search box over every skill in every folder, by name, description, folder or agent.
+  reg('agentSkills.find', async () => {
+    // Rescan when the list may be stale, but redraw the tree only when something changed:
+    // a redraw while the search box opens can move focus and close it.
+    if (Date.now() - lastScan > 2000) refreshNow(false);
+    /** @type {(vscode.QuickPickItem & { node: SkillNode })[]} */
+    const items = [];
+    for (const r of results) {
+      for (const s of r.skills) {
+        const icon = s.disabled ? 'circle-slash' : s.severity === 'error' ? 'error' : s.severity === 'warning' ? 'warning' : 'book';
+        const errors = s.problems.filter((p) => p.severity === 'error').length;
+        const warnings = s.problems.filter((p) => p.severity === 'warning').length;
+        const issues = [errors ? `${errors} error${errors === 1 ? '' : 's'}` : '', warnings ? `${warnings} warning${warnings === 1 ? '' : 's'}` : ''].filter(Boolean).join(', ');
+        items.push({
+          label: `$(${icon}) ${noIcons(s.name)}`,
+          description: noIcons(
+            (r.location.scope === 'user' ? 'User · ' : `${r.location.folderName} · `) + r.location.display + (s.disabled ? ' · disabled' : '') + (issues ? ` · ${issues}` : '')
+          ),
+          detail: noIcons(`${truncate(s.description || '(no description)', 140)} · ${r.location.agents.join(', ')}`),
+          buttons: [
+            { iconPath: new vscode.ThemeIcon('open-preview'), tooltip: 'Preview SKILL.md' },
+            { iconPath: new vscode.ThemeIcon('list-tree'), tooltip: 'Show in the Agent Skills view' },
+          ],
+          node: { type: 'skill', skill: s, location: r.location },
+        });
+      }
+    }
+    if (items.length === 0) {
+      void vscode.window.showInformationMessage('No agent skills found. Create one or install some first.');
+      return;
+    }
+    const qp = vscode.window.createQuickPick();
+    qp.title = 'Find Skill';
+    qp.placeholder = `Search ${items.length} skill${items.length === 1 ? '' : 's'} by name, description, folder or agent`;
+    qp.matchOnDescription = true;
+    qp.matchOnDetail = true;
+    qp.items = items;
+    /** @type {Promise<void>} */
+    const done = new Promise((resolve) => {
+      qp.onDidTriggerItemButton(async (e) => {
+        const node = /** @type {any} */ (e.item).node;
+        qp.hide();
+        if (e.button.tooltip === 'Preview SKILL.md') await vscode.commands.executeCommand('agentSkills.preview', node);
+        else await showInView(node);
+      });
+      qp.onDidAccept(async () => {
+        const item = /** @type {any} */ (qp.selectedItems[0] || qp.activeItems[0]);
+        qp.hide();
+        if (!item) return;
+        if (item.node.skill.skillMd) await vscode.commands.executeCommand('agentSkills.open', item.node);
+        else await showInView(item.node);
+      });
+      qp.onDidHide(() => {
+        qp.dispose();
+        resolve();
+      });
+    });
+    qp.show();
+    await done;
+  });
+
+  /** @param {SkillNode} node */
+  const showInView = async (node) => {
+    await vscode.commands.executeCommand('agentSkills.tree.focus');
+    try {
+      await view.reveal(node, { select: true, focus: true, expand: false });
+    } catch {
+      // The tree may still be loading; the view is focused either way.
+    }
+  };
+
+  reg('agentSkills.preview', async (/** @type {Node | undefined} */ arg) => {
+    const node = await skillArg(arg, (s) => !!s.skillMd, 'Preview which skill?');
+    if (!node) return;
+    if (!node.skill.skillMd) {
+      void vscode.window.showWarningMessage(`"${node.skill.name}" has no SKILL.md.`);
+      return;
+    }
+    await vscode.commands.executeCommand('markdown.showPreview', vscode.Uri.file(node.skill.skillMd));
+  });
+
+  reg('agentSkills.exportBundle', async (/** @type {Node | undefined} */ arg) => {
+    if (!requireTrust()) return;
+    const node = await skillArg(arg, (s) => !!s.skillMd, 'Export which skill as a .skill file?');
+    if (!node) return;
+    const folder = path.basename(node.skill.dir);
+    const ws = (vscode.workspace.workspaceFolders || []).find((f) => f.uri.scheme === 'file');
+    const uri = await vscode.window.showSaveDialog({
+      title: `Export "${node.skill.name}" as a skill bundle`,
+      saveLabel: 'Export',
+      defaultUri: vscode.Uri.file(path.join(ws ? ws.uri.fsPath : home(), `${folder}.skill`)),
+      filters: { 'Skill bundle': ['skill'], 'ZIP archive': ['zip'] },
+    });
+    if (!uri) return;
+    const out = uri.fsPath;
+    try {
+      if (fsops.isInside(fs.realpathSync(node.skill.dir), fsops.realpathLoose(path.dirname(out)))) {
+        void vscode.window.showErrorMessage('Save the bundle outside the skill folder. Agents would load it as part of the skill.');
+        return;
+      }
+      const res = bundle.exportSkill(node.skill.dir);
+      fs.writeFileSync(out, res.buffer);
+      const skippedNote = res.skipped.length ? ` Left out: ${res.skipped.slice(0, 5).join(', ')}${res.skipped.length > 5 ? '…' : ''}.` : '';
+      const errorNote = node.skill.severity === 'error' ? ' The skill has errors, so agents may skip it. Check them before you share it.' : '';
+      const pick = await vscode.window.showInformationMessage(
+        `Exported "${node.skill.name}" to ${path.basename(out)} (${res.files} file${res.files === 1 ? '' : 's'}, ${formatBytes(res.buffer.length)}).${skippedNote}${errorNote}`,
+        'Reveal in File Explorer'
+      );
+      if (pick === 'Reveal in File Explorer') await vscode.commands.executeCommand('revealFileInOS', vscode.Uri.file(out));
+    } catch (e) {
+      void vscode.window.showErrorMessage(`Could not export the skill: ${errorText(e)}`);
+    }
+  });
+
+  reg('agentSkills.installBundle', async (/** @type {any} */ arg) => {
+    if (!requireTrust()) return;
+    /** @type {ResolvedLocation | undefined} */
+    let target = arg && arg.type === 'location' ? arg.result.location : undefined;
+    /** @type {string | undefined} */
+    let file = arg && typeof arg.fsPath === 'string' && arg.scheme === 'file' ? arg.fsPath : undefined;
+    if (!file) {
+      const picked = await vscode.window.showOpenDialog({
+        title: 'Install a skill from a .skill or .zip file',
+        openLabel: 'Install',
+        canSelectMany: false,
+        canSelectFolders: false,
+        filters: { 'Skill bundle': ['skill', 'zip'] },
+      });
+      if (!picked || picked.length === 0) return;
+      file = picked[0].fsPath;
+    }
+    const fileName = path.basename(file);
+    let plan;
+    try {
+      plan = bundle.planBundle(bundle.readBundleFile(file), { bundleName: fileName });
+    } catch (e) {
+      void vscode.window.showErrorMessage(`Could not read ${fileName}: ${errorText(e)}`);
+      return;
+    }
+    let chosen = plan.skills;
+    if (plan.skills.length > 1) {
+      const picks = await vscode.window.showQuickPick(
+        plan.skills.map((s) => ({
+          label: noIcons(s.folder),
+          description: `${s.files.length} file${s.files.length === 1 ? '' : 's'}${s.severity === 'error' ? ' · has errors' : ''}`,
+          detail: noIcons(truncate(s.description || '(no description)', 140)),
+          picked: true,
+          skill: s,
+        })),
+        { title: `${fileName} holds ${plan.skills.length} skills`, canPickMany: true, placeHolder: 'Choose the skills to install', ignoreFocusOut: true }
+      );
+      if (!picks || picks.length === 0) return;
+      chosen = picks.map((p) => p.skill);
+    }
+    const what = chosen.length === 1 ? `"${chosen[0].folder}"` : `${chosen.length} skills`;
+    // Started from an Explorer or tree menu, the closing menu can take focus back: keep the picker open until Esc.
+    if (!target) target = await pickLocation(`Install ${what} into…`, () => true, true);
+    if (!target) return;
+    const lines = chosen.map((s) => {
+      const errs = s.problems.filter((p) => p.severity === 'error').length;
+      return `${s.folder}: ${s.files.length} file${s.files.length === 1 ? '' : 's'}${errs ? `, ${errs} error${errs === 1 ? '' : 's'} in SKILL.md` : ''}`;
+    });
+    const skippedNote = plan.skipped.length
+      ? `\n\nLeft out: ${plan.skipped.slice(0, 8).join(', ')}${plan.skipped.length > 8 ? ` and ${plan.skipped.length - 8} more` : ''}.`
+      : '';
+    const choice = await vscode.window.showWarningMessage(
+      `Install ${what} from ${fileName}?`,
+      {
+        modal: true,
+        detail:
+          `${lines.join('\n')}\n\nInto: ${target.dir}\nRead by: ${target.agents.join(', ')}${skippedNote}\n\n` +
+          'Nothing that exists is overwritten. Skills can include scripts that your agent may run, so read the files before you use them.',
+      },
+      'Install'
+    );
+    if (choice !== 'Install') return;
+    try {
+      const done = bundle.installBundle(chosen, target.dir);
+      refreshNow();
+      const pick = await vscode.window.showInformationMessage(
+        `Installed ${what} into ${target.display} (${done.reduce((n, d) => n + d.files, 0)} files).`,
+        'Open SKILL.md'
+      );
+      if (pick === 'Open SKILL.md') {
+        const md = path.join(done[0].dest, 'SKILL.md');
+        if (fs.existsSync(md)) await vscode.window.showTextDocument(vscode.Uri.file(md));
+      }
+    } catch (e) {
+      void vscode.window.showErrorMessage(`Could not install from ${fileName}: ${errorText(e)}`);
+    }
+  });
+
   reg('agentSkills.installFromGitHub', async () => {
     if (!requireTrust()) return;
     const isFile = (/** @type {string} */ p) => {
@@ -649,10 +902,10 @@ function activate(context) {
       refreshNow();
     }),
     vscode.workspace.onDidChangeConfiguration((e) => {
-      if (e.affectsConfiguration(CONFIG)) scheduleRefresh(50);
+      if (e.affectsConfiguration(CONFIG)) scheduleRefresh(50, true);
     }),
-    vscode.workspace.onDidChangeWorkspaceFolders(() => scheduleRefresh(50)),
-    vscode.workspace.onDidGrantWorkspaceTrust(() => scheduleRefresh(50)),
+    vscode.workspace.onDidChangeWorkspaceFolders(() => scheduleRefresh(50, true)),
+    vscode.workspace.onDidGrantWorkspaceTrust(() => scheduleRefresh(50, true)),
     vscode.workspace.onDidSaveTextDocument((doc) => {
       if (/^skill\.md$/i.test(path.basename(doc.uri.fsPath))) scheduleRefresh();
     }),
@@ -662,7 +915,7 @@ function activate(context) {
     { dispose: () => timer && clearTimeout(timer) }
   );
 
-  scheduleRefresh(0);
+  scheduleRefresh(0, true);
   return { _test: { results: () => results, refreshNow, tree } };
 }
 
