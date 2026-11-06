@@ -1,10 +1,10 @@
 # Agent Skills & Claude Skills (Skill Shelf)
 
-Skill Shelf shows every `SKILL.md` that Claude Code, Codex, Cursor, Copilot and Windsurf can load, in one tree, and flags the ones an agent will choke on.
+For people who write skills for Claude Code, Codex, Cursor, Copilot or Windsurf, Skill Shelf shows every `SKILL.md` those agents can load in one tree and flags the ones an agent will choke on.
 
-![The Agent Skills view listing project and user skills from .claude/skills, .agents/skills and .cursor/skills, with a broken SKILL.md open and its 3 problems in the Problems panel](images/screenshot.png)
+![The Agent Skills view listing 5 project skills and 2 user skills across .claude, .agents, .cursor, .github and .codex folders, with a broken SKILL.md open and its problems in the Problems panel](https://raw.githubusercontent.com/theluckystrike/skill-shelf/main/images/vscode-skill-shelf.png)
 
-*A real VS Code window running this extension on a sample project (three project folders, two user folders, one disabled skill). Nothing in it was edited.*
+*A real VS Code 1.142 window running this extension on a generated sample project (5 project skills in 4 folders, 2 user skills, one broken `SKILL.md`). Nothing in it was edited.*
 
 - See which skills each agent picks up across 23 known folders, for the project and your home folder, without opening ten dot-folders by hand.
 - Catch the mistakes that make an agent skip a skill, like an uppercase `name`, an unquoted `Use when:` in YAML, or a missing `scripts/` file, with line numbers in the Problems panel.
@@ -14,6 +14,10 @@ Skill Shelf shows every `SKILL.md` that Claude Code, Codex, Cursor, Copilot and 
 
 1. Install Skill Shelf and open a folder. Click the shelf icon in the Activity Bar to see your skills.
 2. Expand a skill with a red icon and click a problem to jump to that line. Right-click any skill to disable, enable or copy it.
+
+![A click on the shelf icon shows the skills tree. Expanding the broken Release_Notes skill lists its problems, and a click on the YAML problem opens SKILL.md at that line](https://raw.githubusercontent.com/theluckystrike/skill-shelf/main/images/demo-skill-shelf.gif)
+
+*Recorded in the same window. The white arrow is drawn in to show where each click lands.*
 
 ## Which folders it reads
 

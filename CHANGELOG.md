@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.4 (2026-11-06)
+
+- The Marketplace page now starts with a screenshot of a real VS Code window with the skills tree and a broken SKILL.md, and a short GIF of jumping from a problem to its line. Both were made from generated sample files. The images load from the GitHub repo and are not packed into the extension, so the download size stays the same.
+
 ## 0.1.3 (2026-11-06)
 
 - The Agent Skills view ends with one collapsed row, "Support Skill Shelf", with two links inside, "Sponsor" (GitHub Sponsors) and "More free viewers". When the view is empty, the welcome text has the same two links. The new setting `agentSkills.showSupportLinks` (default `true`) hides both. There is no popup, and nothing is sent anywhere.
