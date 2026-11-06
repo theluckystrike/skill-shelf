@@ -1,0 +1,12 @@
+test/**
+scripts/**
+dist/**
+smoke/**
+.vscode-test/**
+NOTES.md
+LISTING.md
+STATUS.json
+DONE
+**/*.map
+.gitignore
+images/**

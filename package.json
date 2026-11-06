@@ -1,0 +1,302 @@
+{
+  "name": "skill-shelf",
+  "displayName": "Skill Shelf (Agent Skills for Claude Code, Codex, Cursor)",
+  "description": "See, check, turn on/off, copy and create the Agent Skills (SKILL.md) that Claude Code, Codex, Cursor, Copilot and Windsurf load, for this project and your user folder. Offline.",
+  "version": "0.1.0",
+  "publisher": "zovo",
+  "license": "MIT",
+  "icon": "media/icon.png",
+  "engines": {
+    "vscode": "^1.90.0"
+  },
+  "categories": [
+    "AI",
+    "Linters",
+    "Other"
+  ],
+  "keywords": [
+    "agent skills",
+    "skills",
+    "skill.md",
+    "skills manager",
+    "claude code",
+    "claude skills",
+    "claude",
+    "anthropic",
+    "codex",
+    "openai codex",
+    "cursor",
+    "cursor skills",
+    "github copilot",
+    "copilot",
+    "windsurf",
+    "gemini cli",
+    "opencode",
+    "amp",
+    "kiro",
+    "roo code",
+    "junie",
+    "devin",
+    "ai agents",
+    "coding agent",
+    "agentskills",
+    "skill validator",
+    "frontmatter",
+    "yaml lint",
+    "context engineering",
+    "prompt"
+  ],
+  "main": "./src/extension.js",
+  "activationEvents": [
+    "workspaceContains:.claude/skills",
+    "workspaceContains:.agents/skills",
+    "workspaceContains:.cursor/skills",
+    "workspaceContains:.github/skills",
+    "workspaceContains:.codex/skills",
+    "workspaceContains:.windsurf/skills"
+  ],
+  "capabilities": {
+    "untrustedWorkspaces": {
+      "supported": "limited",
+      "description": "In Restricted Mode the extension only lists and checks skills. Disable, enable, copy, create and install are turned off.",
+      "restrictedConfigurations": [
+        "agentSkills.extraLocations"
+      ]
+    },
+    "virtualWorkspaces": false
+  },
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "agentSkills",
+          "title": "Agent Skills",
+          "icon": "media/activity.svg"
+        }
+      ]
+    },
+    "views": {
+      "agentSkills": [
+        {
+          "id": "agentSkills.tree",
+          "name": "Installed Skills",
+          "icon": "media/activity.svg",
+          "contextualTitle": "Agent Skills"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "agentSkills.tree",
+        "contents": "No agent skills found. Checked .claude/skills, .agents/skills, .cursor/skills, .github/skills and other agent folders in this workspace and in your home folder.\n[Create a Skill](command:agentSkills.create)\n[Install from GitHub](command:agentSkills.installFromGitHub)",
+        "when": "isWorkspaceTrusted"
+      },
+      {
+        "view": "agentSkills.tree",
+        "contents": "No agent skills found. This workspace is in Restricted Mode, so the extension is read-only.",
+        "when": "!isWorkspaceTrusted"
+      }
+    ],
+    "commands": [
+      {
+        "command": "agentSkills.refresh",
+        "title": "Refresh",
+        "category": "Agent Skills",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "agentSkills.open",
+        "title": "Open SKILL.md",
+        "category": "Agent Skills",
+        "icon": "$(go-to-file)"
+      },
+      {
+        "command": "agentSkills.openAtLine",
+        "title": "Go to Problem",
+        "category": "Agent Skills"
+      },
+      {
+        "command": "agentSkills.reveal",
+        "title": "Reveal in File Explorer",
+        "category": "Agent Skills"
+      },
+      {
+        "command": "agentSkills.disable",
+        "title": "Disable Skill",
+        "category": "Agent Skills",
+        "icon": "$(circle-slash)",
+        "enablement": "isWorkspaceTrusted"
+      },
+      {
+        "command": "agentSkills.enable",
+        "title": "Enable Skill",
+        "category": "Agent Skills",
+        "icon": "$(check)",
+        "enablement": "isWorkspaceTrusted"
+      },
+      {
+        "command": "agentSkills.copyTo",
+        "title": "Copy Skill To\u2026",
+        "category": "Agent Skills",
+        "icon": "$(copy)",
+        "enablement": "isWorkspaceTrusted"
+      },
+      {
+        "command": "agentSkills.create",
+        "title": "Create Skill\u2026",
+        "category": "Agent Skills",
+        "icon": "$(add)",
+        "enablement": "isWorkspaceTrusted"
+      },
+      {
+        "command": "agentSkills.installFromGitHub",
+        "title": "Install Skills from GitHub\u2026",
+        "category": "Agent Skills",
+        "icon": "$(cloud-download)",
+        "enablement": "isWorkspaceTrusted"
+      }
+    ],
+    "menus": {
+      "commandPalette": [
+        {
+          "command": "agentSkills.openAtLine",
+          "when": "false"
+        },
+        {
+          "command": "agentSkills.disable",
+          "when": "isWorkspaceTrusted"
+        },
+        {
+          "command": "agentSkills.enable",
+          "when": "isWorkspaceTrusted"
+        },
+        {
+          "command": "agentSkills.copyTo",
+          "when": "isWorkspaceTrusted"
+        },
+        {
+          "command": "agentSkills.create",
+          "when": "isWorkspaceTrusted"
+        },
+        {
+          "command": "agentSkills.installFromGitHub",
+          "when": "isWorkspaceTrusted"
+        }
+      ],
+      "view/title": [
+        {
+          "command": "agentSkills.create",
+          "when": "view == agentSkills.tree && isWorkspaceTrusted",
+          "group": "navigation@1"
+        },
+        {
+          "command": "agentSkills.installFromGitHub",
+          "when": "view == agentSkills.tree && isWorkspaceTrusted",
+          "group": "navigation@2"
+        },
+        {
+          "command": "agentSkills.refresh",
+          "when": "view == agentSkills.tree",
+          "group": "navigation@3"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "agentSkills.disable",
+          "when": "view == agentSkills.tree && viewItem == skill.enabled && isWorkspaceTrusted",
+          "group": "inline@1"
+        },
+        {
+          "command": "agentSkills.enable",
+          "when": "view == agentSkills.tree && viewItem == skill.disabled && isWorkspaceTrusted",
+          "group": "inline@1"
+        },
+        {
+          "command": "agentSkills.open",
+          "when": "view == agentSkills.tree && viewItem =~ /^skill\\./",
+          "group": "1_open@1"
+        },
+        {
+          "command": "agentSkills.reveal",
+          "when": "view == agentSkills.tree && viewItem =~ /^(skill\\.|location$)/",
+          "group": "1_open@2"
+        },
+        {
+          "command": "agentSkills.copyTo",
+          "when": "view == agentSkills.tree && viewItem =~ /^skill\\./ && isWorkspaceTrusted",
+          "group": "2_edit@1"
+        },
+        {
+          "command": "agentSkills.disable",
+          "when": "view == agentSkills.tree && viewItem == skill.enabled && isWorkspaceTrusted",
+          "group": "2_edit@2"
+        },
+        {
+          "command": "agentSkills.enable",
+          "when": "view == agentSkills.tree && viewItem == skill.disabled && isWorkspaceTrusted",
+          "group": "2_edit@2"
+        },
+        {
+          "command": "agentSkills.create",
+          "when": "view == agentSkills.tree && viewItem == location && isWorkspaceTrusted",
+          "group": "inline@1"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "Skill Shelf",
+      "properties": {
+        "agentSkills.extraLocations": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "markdownDescription": "Extra skills folders to show. Absolute paths and `~/\u2026` paths are user scope; relative paths are resolved inside each workspace folder (for example `packages/app/.claude/skills`)."
+        },
+        "agentSkills.showEmptyLocations": {
+          "type": "boolean",
+          "default": false,
+          "description": "Show known skills folders that do not exist yet."
+        },
+        "agentSkills.diagnostics": {
+          "type": "string",
+          "enum": [
+            "workspace",
+            "all",
+            "off"
+          ],
+          "enumDescriptions": [
+            "Show SKILL.md problems in the Problems panel for skills in this workspace.",
+            "Also show problems for skills in your home folder.",
+            "Do not add problems to the Problems panel (the tree still shows them)."
+          ],
+          "default": "workspace",
+          "description": "Which SKILL.md validation problems appear in the Problems panel."
+        },
+        "agentSkills.install.disableTelemetry": {
+          "type": "boolean",
+          "default": false,
+          "markdownDescription": "Add `DISABLE_TELEMETRY=1` to the `skills` CLI command that **Install Skills from GitHub** builds for you. Per the CLI's README this turns off both its anonymous usage data **and** its security-audit requests. The extension itself never runs the CLI and sends nothing."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "test": "node --test",
+    "icon": "node scripts/make-icon.js",
+    "package": "npx -y @vscode/vsce@3 package --no-dependencies --baseContentUrl https://raw.githubusercontent.com/theluckystrike/skill-shelf/HEAD/ --baseImagesUrl https://raw.githubusercontent.com/theluckystrike/skill-shelf/HEAD/ -o dist/"
+  },
+  "galleryBanner": {
+    "color": "#1E1B4B",
+    "theme": "dark"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/theluckystrike/skill-shelf"
+  },
+  "homepage": "https://github.com/theluckystrike/skill-shelf#readme",
+  "bugs": {
+    "url": "https://github.com/theluckystrike/skill-shelf/issues"
+  }
+}

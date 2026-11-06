@@ -1,0 +1,96 @@
+# Skill Shelf (Agent Skills for Claude Code, Codex, Cursor)
+
+Skill Shelf shows every `SKILL.md` that Claude Code, Codex, Cursor, Copilot and Windsurf can load, in one tree, and flags the ones an agent will choke on.
+
+![The Agent Skills view listing project and user skills from .claude/skills, .agents/skills and .cursor/skills, with a broken SKILL.md open and its 3 problems in the Problems panel](images/screenshot.png)
+
+*A real VS Code window running this extension on a sample project (three project folders, two user folders, one disabled skill). Nothing in it was edited.*
+
+- See which skills each agent picks up across 23 known folders, for the project and your home folder, without opening ten dot-folders by hand.
+- Catch the mistakes that make an agent skip a skill, like an uppercase `name`, an unquoted `Use when:` in YAML, or a missing `scripts/` file, with line numbers in the Problems panel.
+- Turn a skill off, copy it to another agent or create a new one in a click. Nothing is deleted, and it all works offline.
+
+## Quick start
+
+1. Install Skill Shelf and open a folder. Click the shelf icon in the Activity Bar to see your skills.
+2. Expand a skill with a red icon and click a problem to jump to that line. Right-click any skill to disable, enable or copy it.
+
+## Which folders it reads
+
+The view groups skills under Project (each workspace folder) and User (your home folder). Each folder is labelled with the agents that read it.
+
+| Folder (project) | Folder (user) | Read by |
+|---|---|---|
+| `.claude/skills` | `~/.claude/skills` | Claude Code; Cursor (compatibility folder); GitHub Copilot (project only) |
+| `.agents/skills` | `~/.agents/skills` | Codex, Cursor, GitHub Copilot, Devin, plus Gemini CLI, OpenCode and Amp in projects |
+| `.cursor/skills` | `~/.cursor/skills` | Cursor |
+| `.github/skills` | `~/.copilot/skills` | GitHub Copilot |
+| `.codex/skills` | `~/.codex/skills` | Cursor (compatibility folder); older Codex versions (user folder) |
+| `.windsurf/skills` | `~/.codeium/windsurf/skills` | Windsurf |
+| `.devin/skills` | `~/.config/devin/skills` | Devin |
+| none | `~/.gemini/skills`, `~/.config/opencode/skills`, `~/.config/agents/skills` | Gemini CLI, OpenCode, Amp |
+| `.junie/skills`, `.roo/skills`, `.kiro/skills` | `~/.junie/skills`, `~/.roo/skills`, `~/.kiro/skills` | Junie, Roo Code, Kiro |
+
+These paths come from each agent's documentation and from the `skills` CLI agent table, checked on 2026-11-05. Agents move their folders now and then. Add any folder this list misses with `agentSkills.extraLocations`, for example a monorepo package's `.claude/skills`.
+
+Hover a skill to see its full description, its path and its symlink target. Click it to open `SKILL.md`.
+
+## What it checks
+
+Problems show in the tree. For workspace skills they also go to the Problems panel, with line numbers.
+
+- Frontmatter has to exist and be closed. YAML errors are reported, including the common unquoted `description: Use when: …` that strict YAML parsers reject.
+- `name` is required, at most 64 characters, lowercase letters, digits and single hyphens, and it should match the folder name.
+- `description` is required, not empty, and at most 1,024 characters. `compatibility` is at most 500 characters, and `metadata` is a map of text values.
+- File references in Markdown links, images and reference definitions, plus `scripts/…`, `references/…` and `assets/…` paths in the text, must exist in the skill folder. Links that leave the folder (`../`) get a note.
+- It also flags a folder without `SKILL.md`, a lowercase `skill.md`, an empty body, a body over 500 lines (the spec's guideline) and broken symlinks.
+
+Fields outside the [Agent Skills specification](https://agentskills.io/specification), such as Claude Code's `disable-model-invocation`, show as notes, not errors.
+
+## Managing skills
+
+- Disable and Enable move the skill folder to a hidden sibling folder (`.claude/skills/x` to `.claude/.disabled-skills/x`) and back, after a confirmation that shows both paths. No agent scans that folder, and nothing is deleted.
+- Copy Skill To… copies a skill to any other project or user folder. Copy `~/.claude/skills/pdf-tools` into this repo's `.agents/skills` and Codex and Cursor pick it up too. The copy never overwrites, skips `.git`, and copies at most 2,000 files or 50 MB.
+- Create Skill… asks for a folder, a name and a description, then writes a `SKILL.md` that passes the checks.
+- Reveal in File Explorer and Open SKILL.md do what they say.
+
+## Installing skills from GitHub
+
+Install Skills from GitHub… asks for a repository (`owner/repo`, `owner/repo@tag` or a `https://github.com/…` URL), the agents and the scope. Then it shows the exact [`skills` CLI](https://github.com/vercel-labs/skills) command, for example:
+
+```
+npx -y skills add vercel-labs/agent-skills -a claude-code -a cursor -g
+```
+
+Skill Shelf never runs it for you. Copy Command puts it on the clipboard, and Paste in Terminal types it into a new terminal without pressing Enter, so you read it and run it yourself. The tree refreshes when you close that terminal. Pick "Only list the skills in this repository" to preview a repository with `--list` first.
+
+The repository and skill names are limited to letters, digits and `. _ - /`, so the command can't carry shell syntax. The `skills` CLI needs Node.js 22.20 or newer. Skills can include scripts that your agent may run, so read a repository before you install from it.
+
+## Safety
+
+- The extension makes no network calls, sends no telemetry and starts no processes.
+- It reads only `SKILL.md` files. A `SKILL.md` that is a symlink to a file outside its skill folder is not read.
+- Copy skips files that usually hold secrets (`.env`, `.npmrc`, `*.pem`, `*.key`, `id_rsa` and similar, plus `.ssh` and `.aws` folders) and symlinks that point outside the skill. It lists what it skipped.
+- Hover text escapes every name, path and description, so a skill can't inject links or images.
+- In an untrusted workspace (Restricted Mode) it only lists and checks skills. Disable, enable, copy, create and install are off.
+
+## Settings
+
+| Setting | Default | Description |
+|---|---|---|
+| `agentSkills.extraLocations` | `[]` | Extra skills folders. `~/…` and absolute paths are user scope; relative paths are resolved inside each workspace folder. |
+| `agentSkills.showEmptyLocations` | `false` | Also show known folders that don't exist yet. |
+| `agentSkills.diagnostics` | `workspace` | Which problems go to the Problems panel: `workspace`, `all` (also user skills) or `off`. |
+| `agentSkills.install.disableTelemetry` | `false` | Add `DISABLE_TELEMETRY=1` to the install command. Per the CLI's README this turns off its anonymous usage data and its security-audit requests. |
+
+## Limits
+
+- It lists skills directly inside a skills folder (`<folder>/<skill>/SKILL.md`). Nested `.agents/skills` folders deeper in a monorepo aren't found on their own. Add them with `agentSkills.extraLocations`.
+- Plugin-bundled skills (for example Claude Code plugins) and Codex's admin folder `/etc/codex/skills` aren't listed. `CODEX_HOME` and `CLAUDE_CONFIG_DIR` aren't followed.
+- The YAML parser is built in. It covers what frontmatter uses (maps, lists, quoted and block strings, flow collections) and reports anchors, aliases and tags without resolving them.
+- `SKILL.md` files over 1 MB aren't parsed, and a folder shows at most 1,000 skills. The tree refreshes when a workspace `SKILL.md` changes, when the window regains focus, after its own actions and when you click Refresh. Changes other tools make in user folders show up on the next focus or refresh.
+- Tested on macOS. The Windows path logic has unit tests, but the extension hasn't been run on Windows.
+
+## License
+
+MIT. Not affiliated with Anthropic, OpenAI, Anysphere, GitHub, Microsoft, Vercel or any agent vendor. Product names only say which tools the extension works with.

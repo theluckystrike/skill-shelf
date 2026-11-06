@@ -1,0 +1,8 @@
+node_modules/
+dist/
+.vscode-test/
+DONE
+STATUS.json
+NOTES.md
+LISTING.md
+smoke/
