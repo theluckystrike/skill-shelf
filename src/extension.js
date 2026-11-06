@@ -10,6 +10,9 @@ const { resolveLocations, CLI_AGENTS } = require('./core/locations');
 const { scanLocation } = require('./core/scan');
 const fsops = require('./core/fsops');
 const cli = require('./core/cli');
+const { createRatingPrompt } = require('./rate');
+
+let rating = { success() {} };
 
 /** @typedef {import('./core/scan').SkillInfo} SkillInfo */
 /** @typedef {import('./core/locations').ResolvedLocation} ResolvedLocation */
@@ -312,9 +315,16 @@ function locationOf(node) {
  * @param {vscode.ExtensionContext} context
  */
 function activate(context) {
+  rating = createRatingPrompt({ vscode, context, extensionId: 'zovo.skill-shelf', section: 'agentSkills', message: (n) => `Skill Shelf has listed your skills ${n} times for you. A rating helps other people find it.` });
+  let ratedThisSession = false; // one success per session: the tree is visible and shows at least one skill
+  const countSuccess = (total) => { if (!ratedThisSession && total > 0 && view.visible) { ratedThisSession = true; rating.success(); } };
   const tree = new SkillsTree();
   const diags = vscode.languages.createDiagnosticCollection('agentSkills');
   const view = vscode.window.createTreeView('agentSkills.tree', { treeDataProvider: tree, showCollapseAll: true });
+  const skillCount = () => (results || []).reduce((n, r) => n + r.skills.length, 0);
+  if (typeof view.onDidChangeVisibility === 'function') {
+    context.subscriptions.push(view.onDidChangeVisibility((e) => { if (e.visible) countSuccess(skillCount()); }));
+  }
 
   /** @type {NodeJS.Timeout | undefined} */
   let timer;
@@ -329,6 +339,7 @@ function activate(context) {
     updateDiagnostics(diags);
     const total = results.reduce((n, r) => n + r.skills.filter((s) => !s.disabled).length, 0);
     view.description = total ? `${total} enabled` : undefined;
+    countSuccess(skillCount());
   };
   const scheduleRefresh = (delay = 300) => {
     if (timer) clearTimeout(timer);

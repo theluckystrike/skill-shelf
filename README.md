@@ -82,6 +82,7 @@ The repository and skill names are limited to letters, digits and `. _ - /`, so 
 | `agentSkills.showEmptyLocations` | `false` | Also show known folders that don't exist yet. |
 | `agentSkills.diagnostics` | `workspace` | Which problems go to the Problems panel: `workspace`, `all` (also user skills) or `off`. |
 | `agentSkills.install.disableTelemetry` | `false` | Add `DISABLE_TELEMETRY=1` to the install command. Per the CLI's README this turns off its anonymous usage data and its security-audit requests. |
+| `agentSkills.askForRating` | `true` | Ask one time for a Marketplace rating, after 5 sessions and 2 days. Turn it off with `false` |
 
 ## Limits
 
