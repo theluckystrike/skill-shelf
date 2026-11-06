@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1 (2026-11-06)
+
+- Listing only, no change to the extension. The display name is now "Agent Skills & Claude Skills (Skill Shelf)" and the description is one sentence, so the listing uses the words people search for (agent skills (25), claude skills (11), skills (89)).
+- The 30 keywords start with the most searched terms.
+- The README ends with links to the other Zovo extensions.
+
 ## 0.1.0 (2026-11-06)
 - First release, as Skill Shelf (`zovo.skill-shelf`).
 - Agent Skills tree with 23 known skill folders for Claude Code, Codex, Cursor, GitHub Copilot, Windsurf, Devin, Gemini CLI, OpenCode, Amp, Junie, Roo Code and Kiro, in project and user scope. Add more folders with `agentSkills.extraLocations`.

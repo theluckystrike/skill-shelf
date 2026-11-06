@@ -1,4 +1,4 @@
-# Skill Shelf (Agent Skills for Claude Code, Codex, Cursor)
+# Agent Skills & Claude Skills (Skill Shelf)
 
 Skill Shelf shows every `SKILL.md` that Claude Code, Codex, Cursor, Copilot and Windsurf can load, in one tree, and flags the ones an agent will choke on.
 
@@ -94,3 +94,13 @@ The repository and skill names are limited to letters, digits and `. _ - /`, so 
 ## License
 
 MIT. Not affiliated with Anthropic, OpenAI, Anysphere, GitHub, Microsoft, Vercel or any agent vendor. Product names only say which tools the extension works with.
+
+## More viewers by Zovo
+
+- [Context Drift](https://marketplace.visualstudio.com/items?itemName=zovo.context-drift) finds stale facts in AGENTS.md, CLAUDE.md and other agent rule files.
+- [PDF Viewer & Reader with Dark Mode](https://marketplace.visualstudio.com/items?itemName=zovo.pdf-viewer-dark) reads PDFs with a dark mode, search, an outline and thumbnails.
+- [CSV, Excel & Parquet Viewer](https://marketplace.visualstudio.com/items?itemName=zovo.table-viewer-vscode) opens Parquet, Excel and CSV files as a sortable, filterable table.
+- [DOCX Viewer & Word Viewer](https://marketplace.visualstudio.com/items?itemName=zovo.docx-viewer-vscode) previews Word files with dark mode, an outline and search.
+- [HDF5 & NetCDF Explorer](https://marketplace.visualstudio.com/items?itemName=zovo.hdf5-netcdf-explorer) browses groups, variables and attributes in scientific data files.
+- [PPTX Viewer for PowerPoint](https://marketplace.visualstudio.com/items?itemName=zovo.pptx-slide-viewer) shows PowerPoint slides, thumbnails and speaker notes.
+- [Tensor Viewer](https://marketplace.visualstudio.com/items?itemName=zovo.tensor-viewer) shows NPY, NPZ, Safetensors and GGUF tensors with stats and heatmaps.
