@@ -8,6 +8,7 @@ const path = require('path');
 
 const { resolveLocations, CLI_AGENTS } = require('./core/locations');
 const { scanLocation } = require('./core/scan');
+const { scanPlugins, claudeConfigDir } = require('./core/plugins');
 const fsops = require('./core/fsops');
 const cli = require('./core/cli');
 const bundle = require('./core/bundle');
@@ -21,7 +22,7 @@ let rating = { success() {} };
 /** @typedef {ReturnType<typeof scanLocation>} LocationResult */
 
 /**
- * @typedef {{ type: 'root', id: string, label: string, description: string, scope: 'project' | 'user', folderPath: string | null }} RootNode
+ * @typedef {{ type: 'root', id: string, label: string, description: string, scope: 'project' | 'user' | 'plugin', folderPath: string | null }} RootNode
  * @typedef {{ type: 'location', result: LocationResult }} LocationNode
  * @typedef {{ type: 'skill', skill: SkillInfo, location: ResolvedLocation }} SkillNode
  * @typedef {{ type: 'problem', problem: import('./core/validate').Problem, skill: SkillInfo }} ProblemNode
@@ -48,12 +49,37 @@ function currentLocations() {
     .filter((f) => f.uri.scheme === 'file')
     .map((f) => ({ name: f.name, path: f.uri.fsPath }));
   const extra = config().get('extraLocations', []);
-  return resolveLocations({ home: home(), workspaceFolders: folders, extraLocations: Array.isArray(extra) ? extra : [] });
+  return resolveLocations({ home: home(), env: process.env, workspaceFolders: folders, extraLocations: Array.isArray(extra) ? extra : [] });
+}
+
+function workspaceFolderList() {
+  return (vscode.workspace.workspaceFolders || []).filter((f) => f.uri.scheme === 'file').map((f) => ({ name: f.name, path: f.uri.fsPath }));
 }
 
 function scanAll() {
-  results = currentLocations().map((loc) => scanLocation(loc));
+  const own = currentLocations().map((loc) => scanLocation(loc));
+  /** @type {any[]} */
+  let plugins = [];
+  if (config().get('showPluginSkills', true)) {
+    try {
+      plugins = scanPlugins({ home: home(), env: process.env, workspaceFolders: workspaceFolderList() });
+    } catch {
+      plugins = [];
+    }
+  }
+  results = own.concat(plugins);
   lastScan = Date.now();
+}
+
+/** @param {ResolvedLocation} loc */
+function isPluginLoc(loc) {
+  return /** @type {any} */ (loc).scope === 'plugin';
+}
+
+/** One-line "where" label for pickers. @param {ResolvedLocation} loc */
+function whereLabel(loc) {
+  if (isPluginLoc(loc)) return 'Plugin · ';
+  return loc.scope === 'user' ? '' : `${loc.folderName} · `;
 }
 
 /** A short fingerprint of what the tree shows, to skip redraws when nothing changed. */
@@ -115,6 +141,12 @@ function severityIcon(sev) {
   return new vscode.ThemeIcon('book');
 }
 
+/** ~ for the home folder in labels. @param {string} p */
+function tildeHome(p) {
+  const h = home();
+  return h && (p === h || p.startsWith(h + path.sep)) ? '~' + p.slice(h.length) : p;
+}
+
 /** @implements {vscode.TreeDataProvider<Node>} */
 class SkillsTree {
   constructor() {
@@ -141,6 +173,7 @@ class SkillsTree {
       roots.push({ type: 'root', id: `project:${f.uri.fsPath}`, label: f.name, description: 'Project', scope: 'project', folderPath: f.uri.fsPath });
     }
     roots.push({ type: 'root', id: 'user', label: 'User', description: '~', scope: 'user', folderPath: null });
+    roots.push({ type: 'root', id: 'plugins', label: 'Claude Code plugins', description: 'read-only', scope: 'plugin', folderPath: null });
     /** @type {any[]} */
     const shown = roots.filter((r) => this.locationsOf(r).length > 0);
     // One collapsed "Support Skill Shelf" row at the end, only when the list has skills (an empty tree shows the
@@ -154,7 +187,7 @@ class SkillsTree {
     return results.filter(
       (r) =>
         r.location.scope === root.scope &&
-        (root.scope === 'user' || r.location.folderPath === root.folderPath) &&
+        (root.scope !== 'project' || r.location.folderPath === root.folderPath) &&
         this.visible(r)
     );
   }
@@ -175,7 +208,7 @@ class SkillsTree {
     }
     if (el.type === 'location') {
       const loc = el.result.location;
-      return this.roots().find((r) => r.type === 'root' && r.scope === loc.scope && (loc.scope === 'user' || r.folderPath === loc.folderPath));
+      return this.roots().find((r) => r.type === 'root' && r.scope === loc.scope && (loc.scope !== 'project' || r.folderPath === loc.folderPath));
     }
     if (el.type === 'supportLink') return { type: 'support' };
     return undefined;
@@ -220,8 +253,31 @@ class SkillsTree {
       const item = new vscode.TreeItem(el.label, vscode.TreeItemCollapsibleState.Expanded);
       item.id = el.id;
       item.description = el.description;
-      item.iconPath = new vscode.ThemeIcon(el.scope === 'user' ? 'account' : 'root-folder');
+      item.iconPath = new vscode.ThemeIcon(el.scope === 'user' ? 'account' : el.scope === 'plugin' ? 'extensions' : 'root-folder');
+      if (el.scope === 'plugin') {
+        item.tooltip = 'Skills that come with Claude Code plugins installed in ' + tildeHome(path.join(claudeConfigDir(home(), process.env), 'plugins')) +
+          '. Claude Code manages these folders, so Skill Shelf only lists, checks, previews and copies them. Turn a plugin on or off with /plugin in Claude Code.';
+      }
       item.contextValue = 'root';
+      return item;
+    }
+    if (el.type === 'location' && isPluginLoc(el.result.location)) {
+      const r = el.result;
+      const loc = /** @type {any} */ (r.location);
+      const pl = loc.plugin;
+      const n = r.skills.length;
+      const item = new vscode.TreeItem(pl.name, vscode.TreeItemCollapsibleState.Expanded);
+      item.id = `loc:${loc.key}`;
+      const state = pl.enabled === false ? 'off in settings · ' : '';
+      item.description = `${state}${n} skill${n === 1 ? '' : 's'}` + (pl.marketplace ? ` · ${pl.marketplace}` : '') + (pl.version ? ` · ${pl.version}` : '');
+      item.tooltip = tooltip(
+        pl.id,
+        `\n\nPath: ${loc.dir}\n\nInstalled for: ${pl.installScope === 'user' ? 'all projects (user)' : 'this project (' + pl.installScope + ')'}` +
+          `\n\nState: ${pl.enabled === true ? 'on (enabledPlugins)' : pl.enabled === false ? 'off (enabledPlugins is false)' : 'not named in enabledPlugins'}` +
+          `\n\nClaude Code calls these skills as /${pl.name}:<skill>. Read-only here: change plugins with /plugin in Claude Code.`
+      );
+      item.iconPath = new vscode.ThemeIcon(pl.enabled === false ? 'circle-slash' : 'package');
+      item.contextValue = 'location.plugin';
       return item;
     }
     if (el.type === 'location') {
@@ -251,8 +307,9 @@ class SkillsTree {
         s.problems.length ? vscode.TreeItemCollapsibleState.Collapsed : vscode.TreeItemCollapsibleState.None
       );
       item.id = `skill:${s.dir}`;
-      item.description = (s.disabled ? 'disabled · ' : '') + truncate(s.description || '(no description)', 90);
-      const parts = [s.name + (s.disabled ? ' (disabled)' : '') + '\n\n'];
+      const pluginName = /** @type {any} */ (s).plugin;
+      item.description = (s.disabled ? 'disabled · ' : '') + (pluginName ? `/${pluginName}:${s.name} · ` : '') + truncate(s.description || '(no description)', 90);
+      const parts = [s.name + (s.disabled ? ' (disabled)' : '') + (pluginName ? ` (plugin ${pluginName}, read-only)` : '') + '\n\n'];
       if (s.description) parts.push(s.description.slice(0, 1100) + '\n\n');
       parts.push(`Folder: ${s.dir}`);
       if (s.symlink) parts.push(`\n\nSymbolic link to: ${s.realDir || 'missing target'}`);
@@ -263,7 +320,7 @@ class SkillsTree {
       }
       item.tooltip = tooltip(...parts);
       item.iconPath = s.disabled ? new vscode.ThemeIcon('circle-slash') : severityIcon(s.severity);
-      item.contextValue = s.disabled ? 'skill.disabled' : 'skill.enabled';
+      item.contextValue = /** @type {any} */ (s).readOnly ? 'skill.plugin' : s.disabled ? 'skill.disabled' : 'skill.enabled';
       if (s.skillMd) {
         item.resourceUri = vscode.Uri.file(s.skillMd);
         item.command = { command: 'agentSkills.open', title: 'Open SKILL.md', arguments: [el] };
@@ -339,7 +396,7 @@ async function pickSkill(filter, placeHolder) {
       if (!filter(s)) continue;
       items.push({
         label: s.name,
-        description: (r.location.scope === 'user' ? '' : `${r.location.folderName} · `) + r.location.display + (s.disabled ? ' (disabled)' : ''),
+        description: whereLabel(r.location) + r.location.display + (s.disabled ? ' (disabled)' : ''),
         detail: truncate(s.description, 120),
         node: { type: 'skill', skill: s, location: r.location },
       });
@@ -370,7 +427,8 @@ async function skillArg(arg, filter, placeHolder) {
  * @returns {Promise<ResolvedLocation | undefined>}
  */
 async function pickLocation(placeHolder, filter, ignoreFocusOut = false) {
-  const locs = results.map((r) => ({ loc: r.location, exists: r.exists })).filter((x) => filter(x.loc));
+  // Plugin folders belong to Claude Code: never a target for copy, create or install.
+  const locs = results.map((r) => ({ loc: r.location, exists: r.exists })).filter((x) => !isPluginLoc(x.loc) && filter(x.loc));
   if (locs.length === 0) {
     void vscode.window.showInformationMessage('No skill folders are available. Open a folder or check agentSkills.extraLocations.');
     return undefined;
@@ -484,8 +542,12 @@ function activate(context) {
 
   reg('agentSkills.disable', async (/** @type {Node | undefined} */ arg) => {
     if (!requireTrust()) return;
-    const node = await skillArg(arg, (s) => !s.disabled, 'Disable which skill?');
+    const node = await skillArg(arg, (s) => !s.disabled && !(/** @type {any} */ (s).readOnly), 'Disable which skill?');
     if (!node || node.skill.disabled) return;
+    if (/** @type {any} */ (node.skill).readOnly || isPluginLoc(node.location)) {
+      void vscode.window.showInformationMessage(`"${node.skill.name}" comes with a Claude Code plugin. Turn the plugin off with /plugin in Claude Code.`);
+      return;
+    }
     const loc = locationOf(node);
     const dest = path.join(loc.disabledDir, path.basename(node.skill.dir));
     const choice = await vscode.window.showWarningMessage(
@@ -600,7 +662,7 @@ function activate(context) {
         items.push({
           label: `$(${icon}) ${noIcons(s.name)}`,
           description: noIcons(
-            (r.location.scope === 'user' ? 'User · ' : `${r.location.folderName} · `) + r.location.display + (s.disabled ? ' · disabled' : '') + (issues ? ` · ${issues}` : '')
+            (isPluginLoc(r.location) ? 'Plugin · ' : r.location.scope === 'user' ? 'User · ' : `${r.location.folderName} · `) + r.location.display + (s.disabled ? ' · disabled' : '') + (issues ? ` · ${issues}` : '')
           ),
           detail: noIcons(`${truncate(s.description || '(no description)', 140)} · ${r.location.agents.join(', ')}`),
           buttons: [

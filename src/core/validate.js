@@ -12,6 +12,7 @@ const { extractFileRefs } = require('./links');
 const LIMITS = Object.freeze({
   nameMax: 64,
   descriptionMax: 1024,
+  claudeListingMax: 1536,
   compatibilityMax: 500,
   bodyLinesRecommended: 500,
 });
@@ -216,6 +217,19 @@ function validateSkill(input) {
   } else {
     for (const p of checkDescription(data.description)) problems.push({ ...p, line: lineOf('description') });
     if (typeof data.description === 'string') res.description = data.description.trim();
+    // Claude Code lists description + when_to_use and cuts the pair at 1,536 characters (code.claude.com/docs/en/skills).
+    if (typeof data.description === 'string') {
+      const wtu = typeof data.when_to_use === 'string' ? data.when_to_use : '';
+      const total = cpLength(data.description.trim()) + (wtu ? cpLength(wtu.trim()) : 0);
+      if (total > LIMITS.claudeListingMax) {
+        problems.push({
+          severity: 'warning',
+          code: 'claude-listing-cut',
+          message: `"description"${wtu ? ' plus "when_to_use"' : ''} is ${total} characters. Claude Code shows only the first ${LIMITS.claudeListingMax} in its skill list, so put the main use case first.`,
+          line: lineOf(wtu ? 'when_to_use' : 'description'),
+        });
+      }
+    }
   }
 
   // compatibility

@@ -1,14 +1,18 @@
-# Agent Skills & Claude Skills (Skill Shelf)
+# Agent Skills & Claude Skills Manager (Skill Shelf)
 
-For people who write skills for Claude Code, Codex, Cursor, Copilot or Windsurf, Skill Shelf shows every `SKILL.md` those agents can load in one tree and flags the ones an agent will choke on.
+For people who write skills for Claude Code, Codex, Cursor, Copilot or Windsurf, Skill Shelf shows every `SKILL.md` those agents can load in one tree, including the skills inside your Claude Code plugins, and flags the ones an agent will choke on.
 
 ![The Agent Skills view listing 5 project skills and 2 user skills across .claude, .agents, .cursor, .github and .codex folders, with a broken SKILL.md open and its problems in the Problems panel](https://raw.githubusercontent.com/theluckystrike/skill-shelf/main/images/vscode-skill-shelf.png)
 
 *A real VS Code 1.142 window running this extension on a generated sample project (5 project skills in 4 folders, 2 user skills, one broken `SKILL.md`). Nothing in it was edited.*
 
-- See which skills each agent picks up across 23 known folders, for the project and your home folder, without opening ten dot-folders by hand.
+- See which skills each agent picks up across 25 known folders and your installed Claude Code plugins, for the project and your home folder, without opening ten dot-folders by hand.
 - Catch the mistakes that make an agent skip a skill, like an uppercase `name`, an unquoted `Use when:` in YAML, or a missing `scripts/` file, with line numbers in the Problems panel.
 - Turn a skill off, copy it to another agent, create a new one, or install and share `.skill` files in a click. Nothing is deleted, and it all works offline.
+
+![The Installed Skills view with a project's .claude/skills and .agents/skills, then a Claude Code plugins group: legacy-docs marked off in settings, pdf-toolkit with 3 skills named /pdf-toolkit:pdf-forms and so on, and release-helpers with a warning that description plus when_to_use is 3070 characters](https://raw.githubusercontent.com/theluckystrike/skill-shelf/main/images/vscode-plugin-skills.png)
+
+*Real VS Code 1.142 window with 3 generated Claude Code plugins and 2 project skills. The User folder is collapsed.*
 
 ## Quick start
 
@@ -31,13 +35,27 @@ The view groups skills under Project (each workspace folder) and User (your home
 | `.github/skills` | `~/.copilot/skills` | GitHub Copilot |
 | `.codex/skills` | `~/.codex/skills` | Cursor (compatibility folder); older Codex versions (user folder) |
 | `.windsurf/skills` | `~/.codeium/windsurf/skills` | Windsurf |
+| `.opencode/skills` | `~/.config/opencode/skills` | OpenCode |
 | `.devin/skills` | `~/.config/devin/skills` | Devin |
-| none | `~/.gemini/skills`, `~/.config/opencode/skills`, `~/.config/agents/skills` | Gemini CLI, OpenCode, Amp |
+| none | `~/.gemini/skills`, `~/.config/agents/skills`, `~/.config/amp/skills` | Gemini CLI, Amp |
+| none | `$CLAUDE_CONFIG_DIR/skills`, `$CODEX_HOME/skills` (when you set them) | Claude Code, Codex |
 | `.junie/skills`, `.roo/skills`, `.kiro/skills` | `~/.junie/skills`, `~/.roo/skills`, `~/.kiro/skills` | Junie, Roo Code, Kiro |
 
-These paths come from each agent's documentation and from the `skills` CLI agent table, checked on 2026-11-05. Agents move their folders now and then. Add any folder this list misses with `agentSkills.extraLocations`, for example a monorepo package's `.claude/skills`.
+These paths come from each agent's documentation and from the `skills` CLI agent table, checked on 2026-11-05 and again on 2026-11-07. Agents move their folders now and then. Add any folder this list misses with `agentSkills.extraLocations`, for example a monorepo package's `.claude/skills`.
 
 Hover a skill to see its full description, its path and its symlink target. Click it to open `SKILL.md`.
+
+## Claude Code plugin skills
+
+Skills that come with a Claude Code plugin don't live in a skills folder you can see. Skill Shelf lists them under "Claude Code plugins", one row per plugin, with the name Claude Code uses to call each one (`/plugin-name:skill-name`).
+
+- It reads `~/.claude/plugins/installed_plugins.json` (or the one in `$CLAUDE_CONFIG_DIR`) and each plugin's `skills/` folder, plus the folders listed under `"skills"` in its `.claude-plugin/plugin.json`.
+- Plugins installed for one project show only when that project is open.
+- A plugin that `enabledPlugins` turns off in your user, project or local settings is marked "off in settings".
+- Plugin skills get the same checks, preview, search, copy and export as your own skills. They are read-only: Disable doesn't touch them, because Claude Code owns those folders. Turn a plugin off with `/plugin` in Claude Code.
+- Turn the group off with `agentSkills.showPluginSkills`.
+
+![Find Skill with "pdf" typed lists pdf-forms, pdf-merge and pdf-redact, each marked Plugin · pdf-toolkit@acme-skills](https://raw.githubusercontent.com/theluckystrike/skill-shelf/main/images/vscode-find-plugin-skill.png)
 
 ## Finding a skill
 
@@ -53,6 +71,7 @@ Problems show in the tree. For workspace skills they also go to the Problems pan
 - `name` is required, at most 64 characters, lowercase letters, digits and single hyphens, and it should match the folder name.
 - `description` is required, not empty, and at most 1,024 characters. `compatibility` is at most 500 characters, and `metadata` is a map of text values.
 - File references in Markdown links, images and reference definitions, plus `scripts/…`, `references/…` and `assets/…` paths in the text, must exist in the skill folder. Links that leave the folder (`../`) get a note.
+- Claude Code shows only the first 1,536 characters of `description` plus `when_to_use` in its skill list. Longer text gets a warning, so the main use case goes first.
 - It also flags a folder without `SKILL.md`, a lowercase `skill.md`, an empty body, a body over 500 lines (the spec's guideline) and broken symlinks.
 
 Fields outside the [Agent Skills specification](https://agentskills.io/specification), such as Claude Code's `disable-model-invocation`, show as notes, not errors.
@@ -87,7 +106,7 @@ The repository and skill names are limited to letters, digits and `. _ - /`, so 
 ## Safety
 
 - The extension makes no network calls, sends no telemetry and starts no processes.
-- It reads only `SKILL.md` files, plus the files of a skill you export and the bundle you pick to install. A `SKILL.md` that is a symlink to a file outside its skill folder is not read.
+- It reads only `SKILL.md` files, plus the files of a skill you export and the bundle you pick to install. For plugin skills it also reads `installed_plugins.json`, each plugin's `plugin.json` and the `enabledPlugins` entry of your Claude Code settings files. It never writes to a plugin folder. A `SKILL.md` that is a symlink to a file outside its skill folder is not read.
 - Copy skips files that usually hold secrets (`.env`, `.npmrc`, `*.pem`, `*.key`, `id_rsa` and similar, plus `.ssh` and `.aws` folders) and symlinks that point outside the skill. It lists what it skipped.
 - Hover text escapes every name, path and description, so a skill can't inject links or images.
 - In an untrusted workspace (Restricted Mode) it only lists, finds and checks skills. Disable, enable, copy, create, export and install are off.
@@ -97,6 +116,7 @@ The repository and skill names are limited to letters, digits and `. _ - /`, so 
 | Setting | Default | Description |
 |---|---|---|
 | `agentSkills.extraLocations` | `[]` | Extra skills folders. `~/…` and absolute paths are user scope; relative paths are resolved inside each workspace folder. |
+| `agentSkills.showPluginSkills` | `true` | List the skills inside installed Claude Code plugins (read-only). |
 | `agentSkills.showEmptyLocations` | `false` | Also show known folders that don't exist yet. |
 | `agentSkills.diagnostics` | `workspace` | Which problems go to the Problems panel, `workspace`, `all` (also user skills) or `off`. |
 | `agentSkills.install.disableTelemetry` | `false` | Add `DISABLE_TELEMETRY=1` to the install command. Per the CLI's README this turns off its anonymous usage data and its security-audit requests. |
@@ -106,7 +126,7 @@ The repository and skill names are limited to letters, digits and `. _ - /`, so 
 ## Limits
 
 - It lists skills directly inside a skills folder (`<folder>/<skill>/SKILL.md`). Nested `.agents/skills` folders deeper in a monorepo aren't found on their own. Add them with `agentSkills.extraLocations`.
-- Plugin-bundled skills (for example Claude Code plugins) and Codex's admin folder `/etc/codex/skills` aren't listed. `CODEX_HOME` and `CLAUDE_CONFIG_DIR` aren't followed.
+- Codex's admin folder `/etc/codex/skills`, Claude Code's managed (enterprise) skills and skills inside plugins for other agents aren't listed.
 - The YAML parser is built in. It covers what frontmatter uses (maps, lists, quoted and block strings, flow collections) and reports anchors, aliases and tags without resolving them.
 - `SKILL.md` files over 1 MB aren't parsed, and a folder shows at most 1,000 skills. The tree refreshes when a workspace `SKILL.md` changes, when the window regains focus, after its own actions and when you click Refresh. Changes other tools make in user folders show up on the next focus or refresh.
 - Tested on macOS. The Windows path logic has unit tests, but the extension hasn't been run on Windows.

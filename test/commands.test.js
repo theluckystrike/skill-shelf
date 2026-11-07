@@ -1,4 +1,7 @@
 'use strict';
+// Hermetic: the extension reads these to find Claude Code and Codex folders; a developer's own values must not leak in.
+delete process.env.CLAUDE_CONFIG_DIR;
+delete process.env.CODEX_HOME;
 // Every command path, run against a temp HOME and a temp workspace that use the
 // Claude Code (.claude/skills), Codex (.agents/skills, ~/.codex/skills) and Cursor
 // (.cursor/skills, ~/.cursor/skills) layouts. The vscode module is a stub that records

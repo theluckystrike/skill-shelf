@@ -38,6 +38,7 @@ const LOCATION_DEFS = Object.freeze([
   { id: 'p-junie', scope: 'project', rel: '.junie/skills', agents: ['Junie'], cliAgents: ['junie'] },
   { id: 'p-roo', scope: 'project', rel: '.roo/skills', agents: ['Roo Code'], cliAgents: ['roo'] },
   { id: 'p-kiro', scope: 'project', rel: '.kiro/skills', agents: ['Kiro'], cliAgents: ['kiro-cli'] },
+  { id: 'p-opencode', scope: 'project', rel: '.opencode/skills', agents: ['OpenCode'], cliAgents: [] },
   // user scope
   { id: 'u-claude', scope: 'user', rel: '.claude/skills', agents: ['Claude Code', 'Cursor'], cliAgents: ['claude-code'] },
   { id: 'u-agents', scope: 'user', rel: '.agents/skills', agents: ['Codex', 'Cursor', 'GitHub Copilot', 'Devin'], cliAgents: ['codex'] },
@@ -49,6 +50,7 @@ const LOCATION_DEFS = Object.freeze([
   { id: 'u-gemini', scope: 'user', rel: '.gemini/skills', agents: ['Gemini CLI'], cliAgents: ['gemini-cli'] },
   { id: 'u-opencode', scope: 'user', rel: '.config/opencode/skills', agents: ['OpenCode'], cliAgents: ['opencode'] },
   { id: 'u-amp', scope: 'user', rel: '.config/agents/skills', agents: ['Amp'], cliAgents: ['amp'] },
+  { id: 'u-amp2', scope: 'user', rel: '.config/amp/skills', agents: ['Amp'], cliAgents: [] },
   { id: 'u-junie', scope: 'user', rel: '.junie/skills', agents: ['Junie'], cliAgents: ['junie'] },
   { id: 'u-roo', scope: 'user', rel: '.roo/skills', agents: ['Roo Code'], cliAgents: ['roo'] },
   { id: 'u-kiro', scope: 'user', rel: '.kiro/skills', agents: ['Kiro'], cliAgents: ['kiro-cli'] },
@@ -125,6 +127,7 @@ function tildify(abs, home) {
  * @param {string} opts.home
  * @param {{ name: string, path: string }[]} opts.workspaceFolders
  * @param {string[]} [opts.extraLocations] absolute, "~/..." (user scope) or relative (per workspace folder)
+ * @param {Record<string, string | undefined>} [opts.env] CLAUDE_CONFIG_DIR and CODEX_HOME add their skills folders
  * @returns {ResolvedLocation[]}
  */
 function resolveLocations(opts) {
@@ -168,6 +171,22 @@ function resolveLocations(opts) {
         custom: false,
       });
     }
+  }
+  // Agents that move their home folder with an environment variable: Claude Code (CLAUDE_CONFIG_DIR) and Codex (CODEX_HOME).
+  const env = opts.env || {};
+  for (const [name, agent] of [['CLAUDE_CONFIG_DIR', 'Claude Code'], ['CODEX_HOME', 'Codex']]) {
+    const v = typeof env[name] === 'string' ? env[name].trim() : '';
+    if (!v || !path.isAbsolute(v) || v.length > 1024 || v.includes('\0')) continue;
+    const abs = path.join(path.resolve(v), 'skills');
+    push({
+      scope: 'user',
+      dir: abs,
+      display: tildify(abs, home),
+      agents: [`${agent} (${name})`],
+      folderName: null,
+      folderPath: null,
+      custom: false,
+    });
   }
   for (const raw of opts.extraLocations || []) {
     if (typeof raw !== 'string') continue;

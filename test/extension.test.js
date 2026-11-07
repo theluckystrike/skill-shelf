@@ -1,4 +1,7 @@
 'use strict';
+// Hermetic: the extension reads these to find Claude Code and Codex folders; a developer's own values must not leak in.
+delete process.env.CLAUDE_CONFIG_DIR;
+delete process.env.CODEX_HOME;
 const test = require('node:test');
 const assert = require('node:assert/strict');
 const fs = require('fs');
@@ -296,6 +299,58 @@ test('support: the tree ends with a Support row by default, agentSkills.showSupp
       assert.ok(state.commands.has('agentSkills.supportDeveloper') && state.commands.has('agentSkills.moreViewers'));
       for (const d of context.subscriptions) if (d && typeof d.dispose === 'function') d.dispose();
     }
+  } finally {
+    process.env.HOME = oldHome;
+    fs.rmSync(tmp, { recursive: true, force: true });
+  }
+});
+
+test('Claude Code plugin skills show under a read-only "Claude Code plugins" root', { skip: process.platform === 'win32' }, async () => {
+  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'asm-ext-'));
+  const oldHome = process.env.HOME;
+  try {
+    const home = path.join(tmp, 'home');
+    const ws = path.join(tmp, 'proj');
+    const put = (rel, text) => {
+      fs.mkdirSync(path.dirname(path.join(tmp, rel)), { recursive: true });
+      fs.writeFileSync(path.join(tmp, rel), text);
+    };
+    const inst = path.join(home, '.claude/plugins/cache/acme/doc-tools/2.0.0');
+    put('home/.claude/plugins/cache/acme/doc-tools/2.0.0/skills/doc-review/SKILL.md', '---\nname: doc-review\ndescription: Reviews docs.\n---\nBody\n');
+    put('home/.claude/plugins/installed_plugins.json', JSON.stringify({ version: 2, plugins: { 'doc-tools@acme': [{ scope: 'user', installPath: inst, version: '2.0.0' }] } }));
+    put('home/.claude/settings.json', JSON.stringify({ enabledPlugins: { 'doc-tools@acme': false } }));
+    put('proj/.claude/skills/mine/SKILL.md', '---\nname: mine\ndescription: Mine.\n---\nBody\n');
+    process.env.HOME = home;
+    const state = { commands: new Map(), diagnostics: new Map(), messages: [], folders: [{ name: 'proj', uri: { scheme: 'file', fsPath: ws } }], trusted: true, config: {} };
+    const ext = loadExtension(makeVscode(state));
+    const context = { subscriptions: [] };
+    const api = ext.activate(context);
+    api._test.refreshNow();
+    const tree = api._test.tree;
+    const roots = tree.getChildren().filter((r) => r.type === 'root');
+    assert.deepEqual(roots.map((r) => `${r.label}:${r.scope}`), ['proj:project', 'Claude Code plugins:plugin']);
+    const pluginLocs = tree.getChildren(roots[1]);
+    assert.equal(pluginLocs.length, 1);
+    const locItem = tree.getTreeItem(pluginLocs[0]);
+    assert.equal(locItem.label, 'doc-tools');
+    assert.equal(locItem.contextValue, 'location.plugin');
+    assert.match(locItem.description, /^off in settings · 1 skill · acme · 2\.0\.0$/);
+    const skills = tree.getChildren(pluginLocs[0]);
+    const item = tree.getTreeItem(skills[0]);
+    assert.equal(item.contextValue, 'skill.plugin');
+    assert.match(item.description, /^\/doc-tools:doc-review · Reviews docs\./);
+    assert.deepEqual(tree.getParent(skills[0]), pluginLocs[0]);
+    assert.equal(tree.getParent(pluginLocs[0]).scope, 'plugin');
+    // Disable never moves a plugin's folder
+    await state.commands.get('agentSkills.disable')(skills[0]);
+    assert.equal(fs.existsSync(path.join(inst, 'skills/doc-review/SKILL.md')), true);
+    // plugin skills are not in the Problems panel by default (diagnostics = workspace)
+    assert.equal([...state.diagnostics.keys()].some((k) => k.includes('doc-review')), false);
+    // the setting turns the group off
+    state.config['showPluginSkills'] = false;
+    api._test.refreshNow();
+    assert.deepEqual(tree.getChildren().filter((r) => r.type === 'root').map((r) => r.scope), ['project']);
+    for (const d of context.subscriptions) if (d && typeof d.dispose === 'function') d.dispose();
   } finally {
     process.env.HOME = oldHome;
     fs.rmSync(tmp, { recursive: true, force: true });

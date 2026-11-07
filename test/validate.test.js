@@ -193,3 +193,18 @@ test('normalizeTarget decodes and strips query/fragment', () => {
   assert.equal(normalizeTarget('C:\\x.md'), null);
   assert.equal(normalizeTarget('#top'), null);
 });
+
+test('Claude Code listing cut: description + when_to_use over 1,536 characters is a warning on the right line', () => {
+  const d1000 = 'a'.repeat(1000);
+  const ok = skill(`---\nname: pdf-tools\ndescription: ${d1000}\nwhen_to_use: ${'b'.repeat(536)}\n---\nbody\n`);
+  assert.equal(ok.problems.some((p) => p.code === 'claude-listing-cut'), false, 'exactly 1,536 is fine');
+  const over = skill(`---\nname: pdf-tools\ndescription: ${d1000}\nwhen_to_use: ${'b'.repeat(537)}\n---\nbody\n`);
+  const p = over.problems.find((x) => x.code === 'claude-listing-cut');
+  assert.equal(p.severity, 'warning');
+  assert.equal(p.line, 4);
+  assert.match(p.message, /"description" plus "when_to_use" is 1537 characters\. Claude Code shows only the first 1536/);
+  // a description alone over 1,024 is already an error; with no when_to_use it can't pass 1,536 without that error
+  const long = skill(`---\nname: pdf-tools\ndescription: ${'c'.repeat(1600)}\n---\nbody\n`);
+  assert.deepEqual(codes(long.problems), ['claude-listing-cut', 'description-too-long']);
+  assert.equal(long.problems.find((x) => x.code === 'claude-listing-cut').line, 3);
+});

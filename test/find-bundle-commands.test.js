@@ -1,4 +1,7 @@
 'use strict';
+// Hermetic: the extension reads these to find Claude Code and Codex folders; a developer's own values must not leak in.
+delete process.env.CLAUDE_CONFIG_DIR;
+delete process.env.CODEX_HOME;
 // Find Skill, Preview SKILL.md, Export Skill as .skill File and Install Skill from .skill or .zip File,
 // run through the extension with a stub vscode module, a temp HOME and a temp workspace.
 const test = require('node:test');

@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.0 (2026-11-07)
+
+- New "Claude Code plugins" group. Skills that come with your installed Claude Code plugins now show in the tree, one row per plugin, with the name Claude Code calls them by (`/plugin-name:skill-name`). It covers skills in the plugin's `skills/` folder and the folders its `plugin.json` lists. Plugins installed for one project show only in that project. A plugin that `enabledPlugins` turns off is marked "off in settings". These skills are read-only: you can check, search, preview, copy and export them, and Disable leaves them alone. The setting `agentSkills.showPluginSkills` hides the group.
+- `$CLAUDE_CONFIG_DIR/skills` and `$CODEX_HOME/skills` are listed when you set those variables, and the plugin list follows `CLAUDE_CONFIG_DIR` too.
+- Two more folders: `.opencode/skills` (OpenCode, project) and `~/.config/amp/skills` (Amp).
+- New warning when `description` plus `when_to_use` is longer than 1,536 characters. Claude Code shows only that much in its skill list.
+- The display name is now "Agent Skills & Claude Skills Manager (Skill Shelf)".
+
 ## 0.2.1 (2026-11-07)
 
 - The "More free viewers" list and the README list now show the 15 Zovo extensions on the Marketplace under their current names, and 12 that are coming soon.

@@ -1,8 +1,8 @@
 {
   "name": "skill-shelf",
-  "displayName": "Agent Skills & Claude Skills (Skill Shelf)",
-  "description": "Manage Agent Skills and Claude skills (SKILL.md) for Claude Code, Codex, Cursor, Copilot and Windsurf, so you can see, check, turn on or off, copy and create them offline.",
-  "version": "0.2.1",
+  "displayName": "Agent Skills & Claude Skills Manager (Skill Shelf)",
+  "description": "Agent Skills and Claude skills manager for Claude Code, Codex, Cursor, Copilot and Windsurf: see every SKILL.md, including Claude Code plugin skills, check it, turn it off, copy it or create one. Offline.",
+  "version": "0.3.0",
   "publisher": "zovo",
   "license": "MIT",
   "icon": "media/icon.png",
@@ -19,14 +19,16 @@
     "claude skills",
     "skills",
     "skill.md",
+    "claude code plugins",
+    "claude skills manager",
+    "agent skills manager",
+    "plugin skills",
     "skills manager",
     "claude code skills",
     "copilot skills",
     "cursor skills",
-    "skill",
     "claude code",
     "claude",
-    "anthropic",
     "github copilot",
     "copilot",
     "codex",
@@ -42,9 +44,7 @@
     "devin",
     "ai agents",
     "coding agent",
-    "frontmatter",
-    "context engineering",
-    ".skill"
+    "context engineering"
   ],
   "main": "./src/extension.js",
   "activationEvents": [
@@ -282,7 +282,7 @@
         },
         {
           "command": "agentSkills.reveal",
-          "when": "view == agentSkills.tree && viewItem =~ /^(skill\\.|location$)/",
+          "when": "view == agentSkills.tree && viewItem =~ /^(skill\\.|location$|location\\.plugin$)/",
           "group": "1_open@2"
         },
         {
@@ -334,6 +334,11 @@
           },
           "default": [],
           "markdownDescription": "Extra skills folders to show. Absolute paths and `~/…` paths are user scope; relative paths are resolved inside each workspace folder (for example `packages/app/.claude/skills`)."
+        },
+        "agentSkills.showPluginSkills": {
+          "type": "boolean",
+          "default": true,
+          "description": "List the skills that come with installed Claude Code plugins (read from ~/.claude/plugins/installed_plugins.json, or $CLAUDE_CONFIG_DIR). They are read-only here."
         },
         "agentSkills.showEmptyLocations": {
           "type": "boolean",
