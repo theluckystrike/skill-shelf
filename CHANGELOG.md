@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.3.2 (2026-11-07)
+
+- Marketplace keywords: added `skill`, `.skill`.
+
 ## 0.3.1 (2026-11-07)
 
 - "More free viewers" now starts with the Zovo extensions most related to this one. Picking one opens its Marketplace page, where you choose to install it.
