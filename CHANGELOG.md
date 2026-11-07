@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.1 (2026-11-07)
+
+- "More free viewers" now starts with the Zovo extensions most related to this one. Picking one opens its Marketplace page, where you choose to install it.
+- The README has a "Support Zovo" section with GitHub Sponsors and the developer's GitHub profile, and "More tools by Zovo" lists related extensions.
+
 ## 0.3.0 (2026-11-07)
 
 - New "Claude Code plugins" group. Skills that come with your installed Claude Code plugins now show in the tree, one row per plugin, with the name Claude Code calls them by (`/plugin-name:skill-name`). It covers skills in the plugin's `skills/` folder and the folders its `plugin.json` lists. Plugins installed for one project show only in that project. A plugin that `enabledPlugins` turns off is marked "off in settings". These skills are read-only: you can check, search, preview, copy and export them, and Disable leaves them alone. The setting `agentSkills.showPluginSkills` hides the group.
